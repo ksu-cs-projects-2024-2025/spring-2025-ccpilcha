@@ -8,7 +8,7 @@
  * @brief Loads the mesh in the pipeline.
  * @warning Must be ran from the main thread!
  */
-void GFX::Mesh::Load()
+void Mesh::Load()
 {
     shader->use();
 	vbo.bind(GL_ARRAY_BUFFER);
@@ -19,7 +19,7 @@ void GFX::Mesh::Load()
  * @brief Renders the mesh. Must be loaded prior
  * @warning Must be ran from the main thread!
  */
-void GFX::Mesh::Render()
+void Mesh::Render()
 {
     if (!loaded)
     {

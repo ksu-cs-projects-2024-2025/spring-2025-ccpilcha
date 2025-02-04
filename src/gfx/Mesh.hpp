@@ -5,7 +5,6 @@
 #include "VBO.hpp"
 
 // Note: Should only be ran from the main thread!
-namespace GFX {
 class Mesh
 {
 protected:
@@ -19,4 +18,3 @@ public:
     void Load();
     void Render();
 };
-}
