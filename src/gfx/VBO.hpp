@@ -3,20 +3,18 @@
 #include "GLHelper.hpp"
 #include <glad/gl.h>
 
-namespace GFX {
-	class VBO
+class VBO
+{
+	unsigned int vboID;
+public:
+	VBO() {
+		glCall(glGenBuffers(1, &(this->vboID)));
+	}
+	void bind(GLenum target)
 	{
-		unsigned int vboID;
-	public:
-		VBO() {
-			glCall(glGenBuffers(1, &(this->vboID)));
-		}
-		void bind(GLenum target)
-		{
-			glCall(glBindBuffer(target, this->vboID));
-		}
-		~VBO() {
-            glCall(glDeleteBuffers(1, &(this->vboID)));
-		}
-	};
-}
+		glCall(glBindBuffer(target, this->vboID));
+	}
+	~VBO() {
+		glCall(glDeleteBuffers(1, &(this->vboID)));
+	}
+};
