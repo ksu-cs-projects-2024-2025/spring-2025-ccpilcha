@@ -1,18 +1,15 @@
 #pragma once
 
-#include <glm/glm.hpp>
 #include <SDL3/SDL.h>
 
-#include "Camera.hpp"
 #include "GameConfiguration.hpp"
+#include "../gfx/Camera.hpp"
 
-class Player
-{
-    bool movement[6];
+class World {
+
 public:
-    Camera camera;
-    Player();
-    ~Player();
+    World();
+    ~World();
     void init();
     void handleEvent(GameConfiguration *c, SDL_Event *event);
     void update(GameConfiguration *c, double deltaTime);
