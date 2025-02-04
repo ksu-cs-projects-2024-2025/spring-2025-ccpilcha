@@ -1,15 +1,16 @@
 #pragma once
 
-namespace GFX {
+#include <SDL3/SDL.h>
+
+#include "../game/GameConfiguration.hpp"
+
 class GraphicsEngine
 {   
-    
 public:
     GraphicsEngine();
     ~GraphicsEngine();
     void init();
-    void render();
-    void update();
-    void cleanup();
+    void handleEvent(GameConfiguration *c, SDL_Event *event);
+    void update(GameConfiguration *c, double deltaTime);
+    void render(GameConfiguration *c);
 };
-}
