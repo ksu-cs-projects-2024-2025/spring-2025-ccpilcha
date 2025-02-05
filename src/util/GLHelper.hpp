@@ -17,7 +17,7 @@ static void GL_clearError()
 static void GL_logCall(const char* function, const char* file, int line)
 {
 	while (GLenum error = glGetError()) {
-		std::cout << "[OpenGL error] " << error << "\n" << file << "\n" << function << "\n" << line << "\n";
+		std::cerr << "\n[OpenGL error] " << error << "\n" << file << "\n" << function << "\n" << line << "\n";
 		exit(-1);
 	}
 }

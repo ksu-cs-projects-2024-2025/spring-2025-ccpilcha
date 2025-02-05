@@ -1,6 +1,6 @@
 #include "Player.hpp"
 
-Player::Player() : camera()
+Player::Player() : camera(), chunkPos()
 {
 }
 
@@ -8,7 +8,7 @@ Player::~Player()
 {
 }
 
-void Player::init()
+void Player::Init(GameContext *c, ChunkPos pos)
 {
     movement[0] = false;
     movement[1] = false;
@@ -16,10 +16,20 @@ void Player::init()
     movement[3] = false;
     movement[4] = false;
     movement[5] = false;
+
+    camera.aspect = (float)c->aspectRatio;
 }
 
-void Player::handleEvent(GameConfiguration *c, SDL_Event *event)
+void Player::OnEvent(GameContext *c, SDL_Event *event)
 {
+    if (event->type == SDL_EVENT_WINDOW_RESIZED)
+    {
+        camera.viewport(c->aspectRatio, c->fov);
+    }
+    else if (event->type == SDL_EVENT_MOUSE_MOTION)
+    {
+        if (c->isFocused) camera.rotateBy(event->motion.xrel, event->motion.yrel);
+    }
     if (event->type == SDL_EVENT_KEY_DOWN || event->type == SDL_EVENT_KEY_UP)
     {
         // handle movement
@@ -34,7 +44,7 @@ void Player::handleEvent(GameConfiguration *c, SDL_Event *event)
     }
 }
 
-void Player::update(GameConfiguration *c, double deltaTime)
+void Player::Update(GameContext *c, double deltaTime)
 {
     // handle movement
     glm::vec3 move = glm::vec3(0.0f);
@@ -47,7 +57,7 @@ void Player::update(GameConfiguration *c, double deltaTime)
     camera.translate(move * (c->moveSpeed * (float)deltaTime));
 }
 
-void Player::render(GameConfiguration *c)
+void Player::Render(GameContext *c)
 {
     // not sure what would go here yet
 }

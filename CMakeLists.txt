@@ -134,6 +134,10 @@ add_executable(${EXECUTABLE_NAME})
 target_link_libraries(${EXECUTABLE_NAME} glm glad SDL3_image SDL3_mixer SDL3_ttf SDL3)
 target_include_directories(${EXECUTABLE_NAME} PRIVATE ${glad_SOURCE_DIR}/src/include)
 
+add_custom_target(assets
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_LIST_DIR}/assets ${CMAKE_BINARY_DIR}/assets
+)
+add_dependencies(${EXECUTABLE_NAME} assets)
 
 # Find all .cpp files automatically
 file(GLOB_RECURSE SRC_FILES "src/*.cpp")

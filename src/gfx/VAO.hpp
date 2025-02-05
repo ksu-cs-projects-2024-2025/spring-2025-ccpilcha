@@ -11,7 +11,7 @@ public:
      * @brief Construct a new VAO object
      * 
      */
-    VAO() {
+    void Init() {
         glCall(glGenVertexArrays(1, &this->vaoID));
     }
     /**

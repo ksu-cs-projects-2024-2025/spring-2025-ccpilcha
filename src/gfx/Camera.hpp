@@ -43,6 +43,10 @@ struct Camera {
     void rotateBy(int yaw, int pitch) {
         this->yaw += yaw * yawSensitivity;
         this->pitch += pitch * pitchSensitivity;
+        if (this->pitch > 89.0f)
+			this->pitch = 89.0f;
+		if (this->pitch < -89.0f)
+			this->pitch = -89.0f;
         glm::quat q = glm::quat(glm::vec3(this->pitch, this->yaw, 0.0f));
         view = glm::mat4_cast(q);
     }

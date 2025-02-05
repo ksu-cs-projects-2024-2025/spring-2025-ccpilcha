@@ -1,17 +1,23 @@
 #pragma once
 
 #include <SDL3/SDL.h>
+#include <unordered_map>
 
-#include "GameConfiguration.hpp"
+#include "GameContext.hpp"
+#include "Terrain.hpp"
 #include "../gfx/Camera.hpp"
+#include "../gfx/ChunkRenderer.hpp"
 
 class World {
-
+    ChunkRenderer renderer;
+    Terrain terrain;
+    std::unordered_map<ChunkPos, Chunk> chunks; // this is a map of chunk positions to chunks loaded in memory
 public:
     World();
     ~World();
-    void init();
-    void handleEvent(GameConfiguration *c, SDL_Event *event);
-    void update(GameConfiguration *c, double deltaTime);
-    void render(GameConfiguration *c);
+    void Init(GameContext *c);
+    void OnEvent(GameContext *c, SDL_Event *event);
+    void Update(GameContext *c, double deltaTime);
+    BLOCK_ID_TYPE GetBlockId(const ChunkPos &pos, int8_t x, int8_t y, int8_t z);
+    void Render(GameContext *c);
 };

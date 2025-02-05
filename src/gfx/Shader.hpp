@@ -17,6 +17,8 @@ class Shader
 {
 public:
     unsigned int ID;
+    const char* vertexCodeStr;
+    const char* fragmentCodeStr;
     // constructor generates the shader on the fly
     // ------------------------------------------------------------------------
     Shader(const char* vertexPath, const char* fragmentPath)
@@ -49,29 +51,28 @@ public:
         {
             std::cout << "ERROR::SHADER::FILE_NOT_SUCCESSFULLY_READ: " << e.what() << std::endl;
         }
-        const char* vShaderCode = vertexCode.c_str();
-        const char* fShaderCode = fragmentCode.c_str();
+        vertexCodeStr = vertexCode.c_str();
+        fragmentCodeStr = fragmentCode.c_str();
         // 2. compile shaders
-        unsigned int vertex, fragment;
         // vertex shader
-        vertex = glCreateShader(GL_VERTEX_SHADER);
-        glShaderSource(vertex, 1, &vShaderCode, NULL);
-        glCompileShader(vertex);
+        unsigned int vertex = glCreateShader(GL_VERTEX_SHADER);
+        glCall(glShaderSource(vertex, 1, &vertexCodeStr, NULL));
+        glCall(glCompileShader(vertex));
         checkCompileErrors(vertex, "VERTEX");
         // fragment Shader
-        fragment = glCreateShader(GL_FRAGMENT_SHADER);
-        glShaderSource(fragment, 1, &fShaderCode, NULL);
-        glCompileShader(fragment);
+        unsigned int fragment = glCreateShader(GL_FRAGMENT_SHADER);
+        glCall(glShaderSource(fragment, 1, &fragmentCodeStr, NULL));
+        glCall(glCompileShader(fragment));
         checkCompileErrors(fragment, "FRAGMENT");
         // shader Program
         ID = glCreateProgram();
-        glAttachShader(ID, vertex);
-        glAttachShader(ID, fragment);
+        glCall(glAttachShader(ID, vertex));
+        glCall(glAttachShader(ID, fragment));
         glLinkProgram(ID);
         checkCompileErrors(ID, "PROGRAM");
         // delete the shaders as they're linked into our program now and no longer necessary
-        glDeleteShader(vertex);
-        glDeleteShader(fragment);
+        glCall(glDeleteShader(vertex));
+        glCall(glDeleteShader(fragment));
 
     }
 

@@ -4,17 +4,19 @@
 #include <SDL3/SDL.h>
 
 #include "Camera.hpp"
-#include "GameConfiguration.hpp"
+#include "GameContext.hpp"
+#include "Chunk.hpp"
 
 class Player
 {
     bool movement[6];
 public:
+    ChunkPos chunkPos;
     Camera camera;
     Player();
     ~Player();
-    void init();
-    void handleEvent(GameConfiguration *c, SDL_Event *event);
-    void update(GameConfiguration *c, double deltaTime);
-    void render(GameConfiguration *c);
+    void Init(GameContext *c, ChunkPos pos);
+    void OnEvent(GameContext *c, SDL_Event *event);
+    void Update(GameContext *c, double deltaTime);
+    void Render(GameContext *c);
 };

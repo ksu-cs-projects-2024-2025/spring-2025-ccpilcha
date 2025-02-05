@@ -1,41 +1,54 @@
 #include "GameEngine.hpp"
 
-GameEngine::GameEngine() : world(), plr(), config()
+#include "glad/gl.h"
+#include "../util/GLHelper.hpp"
+
+GameEngine::GameEngine(GameContext *c) : context(c), plr(), world()
 {
-    config.plr = &plr;
+    context->plr = &plr;
 }
 
 GameEngine::~GameEngine()
 {
 }
 
-SDL_AppResult GameEngine::init() {
-    world.init();
-    plr.init();
+SDL_AppResult GameEngine::Init() {
+    plr.Init(context, ChunkPos());
+    world.Init(context);
     return SDL_APP_CONTINUE;
 }
 
-SDL_AppResult GameEngine::handleEvent(SDL_Event *event) {
+SDL_AppResult GameEngine::OnEvent(SDL_Event *event) {
     if (event->type == SDL_EVENT_KEY_DOWN) {
         switch (event->key.key) {
             case SDLK_ESCAPE:
-                return SDL_APP_SUCCESS;
-            default:
-                
-                return SDL_APP_CONTINUE;
+                context->isFocused = false;
         }
     }
-    world.handleEvent(&config, event);
+    if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN){
+        if (event->button.button == SDL_BUTTON_LEFT) {
+            context->isFocused = true;
+        }
+    }
+    if (SDL_GetWindowRelativeMouseMode(context->window) != context->isFocused) 
+        SDL_SetWindowRelativeMouseMode(context->window, context->isFocused);
+    plr.OnEvent(context, event);
+    world.OnEvent(context, event);
                 
     return SDL_APP_CONTINUE;
 }
 
-SDL_AppResult GameEngine::update(double deltaTime) {
-    world.update(&config, deltaTime);
+SDL_AppResult GameEngine::Update(double deltaTime) {
+    plr.Update(context, deltaTime);
+    world.Update(context, deltaTime);
     return SDL_APP_CONTINUE;
 }
 
-SDL_AppResult GameEngine::render() {
-    world.render(&config);
+SDL_AppResult GameEngine::Render() {
+    float color = 0.5f + context->plr->camera.pitch*0.01f;
+    glCall(glClearColor(0.1f, color, 0.6f, 1.0f));
+    glCall(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
+    plr.Render(context);
+    world.Render(context);
     return SDL_APP_CONTINUE;
 }

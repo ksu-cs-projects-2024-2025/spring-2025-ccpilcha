@@ -1,6 +1,5 @@
 #pragma once
 
-#include "../gfx/GraphicsEngine.hpp"
 #include "World.hpp"
 #include "Player.hpp"
 
@@ -8,16 +7,15 @@
 #define GAMEENGINE_H
 class GameEngine
 {
-    GameConfiguration config;
-    GraphicsEngine gfx;
+    GameContext *context;
     World world;
     Player plr;
 public:
-    GameEngine();
+    GameEngine(GameContext *c);
     ~GameEngine();
-    SDL_AppResult init();
-    SDL_AppResult handleEvent(SDL_Event *event);
-    SDL_AppResult update(double deltaTime);
-    SDL_AppResult render();
+    SDL_AppResult Init();
+    SDL_AppResult OnEvent(SDL_Event *event);
+    SDL_AppResult Update(double deltaTime);
+    SDL_AppResult Render();
 };
 #endif
