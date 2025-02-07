@@ -1,10 +1,11 @@
 #include "GameEngine.hpp"
-
+#include "World.hpp"
 #include "glad/gl.h"
 #include "../util/GLHelper.hpp"
 
-GameEngine::GameEngine(GameContext *c) : context(c), plr(), world()
+GameEngine::GameEngine(GameContext *c) : context(c), plr()
 {
+    world = new World();
     context->plr = &plr;
 }
 
@@ -14,7 +15,7 @@ GameEngine::~GameEngine()
 
 SDL_AppResult GameEngine::Init() {
     plr.Init(context, ChunkPos());
-    world.Init(context);
+    world->Init(context);
     return SDL_APP_CONTINUE;
 }
 
@@ -33,14 +34,14 @@ SDL_AppResult GameEngine::OnEvent(SDL_Event *event) {
     if (SDL_GetWindowRelativeMouseMode(context->window) != context->isFocused) 
         SDL_SetWindowRelativeMouseMode(context->window, context->isFocused);
     plr.OnEvent(context, event);
-    world.OnEvent(context, event);
+    world->OnEvent(context, event);
                 
     return SDL_APP_CONTINUE;
 }
 
 SDL_AppResult GameEngine::Update(double deltaTime) {
     plr.Update(context, deltaTime);
-    world.Update(context, deltaTime);
+    world->Update(context, deltaTime);
     return SDL_APP_CONTINUE;
 }
 
@@ -49,6 +50,6 @@ SDL_AppResult GameEngine::Render() {
     glCall(glClearColor(0.1f, color, 0.6f, 1.0f));
     glCall(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
     plr.Render(context);
-    world.Render(context);
+    world->Render(context);
     return SDL_APP_CONTINUE;
 }

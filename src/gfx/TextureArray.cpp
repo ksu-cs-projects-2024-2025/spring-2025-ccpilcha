@@ -31,8 +31,8 @@ TextureArray::TextureArray(const char* path)
     glCall(glGenTextures(1, &id));
     glCall(glBindTexture(GL_TEXTURE_2D_ARRAY, id));
     // set the texture wrapping/filtering options (on the currently bound texture object)
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glCall(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT));
+    glCall(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT));
     glCall(glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_NEAREST));
     glCall(glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
 
@@ -71,8 +71,8 @@ TextureArray::TextureArray(const char* path)
 
 void TextureArray::use(GLenum texture)
 {
-    glActiveTexture(texture);
-    glBindTexture(GL_TEXTURE_2D_ARRAY, this->id);
+    glCall(glActiveTexture(texture));
+    glCall(glBindTexture(GL_TEXTURE_2D_ARRAY, this->id));
 }
 
 TextureArray::~TextureArray()

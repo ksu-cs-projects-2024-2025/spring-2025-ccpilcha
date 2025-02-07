@@ -57,6 +57,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
     SDL_GL_SetSwapInterval(0); // 0 disables V-Sync in SDL
 
     window = SDL_CreateWindow("VoxelEngine", 800, 600, SDL_WINDOW_OPENGL);
+    SDL_SetWindowResizable(window, true);
     SDL_SetWindowRelativeMouseMode(window, true);
 
     if (window == nullptr)
@@ -83,12 +84,6 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
 
     glCall(glEnable(GL_DEPTH_TEST));
     glCall(glEnable(GL_CULL_FACE));
-    if (GLAD_GL_KHR_debug) {
-        glEnable(GL_DEBUG_OUTPUT);
-        glDebugMessageCallback(MessageCallback, 0);
-    } else {
-        std::cerr << "GL_KHR_debug extension is NOT available. Debug output will not work." << std::endl;
-    }
 
 #ifdef G_DEBUG
     std::cout << "Vendor: " << glGetString(GL_VENDOR) << std::endl;
@@ -137,4 +132,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 /* This function runs once at shutdown. */
 void SDL_AppQuit(void *appstate, SDL_AppResult result)
 {
+    // TODO: make sure everything get saved!
+    delete game;
+    delete context;
 }

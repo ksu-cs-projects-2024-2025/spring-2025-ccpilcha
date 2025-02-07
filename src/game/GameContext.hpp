@@ -3,11 +3,19 @@
 #include <SDL3/SDL_keycode.h>
 #include <SDL3/SDL.h>
 
+#include "gfx/TextureArray.hpp"
+
 class Player;
 class World;
 
-// for now this will include default settings for the game.
-// eventually i want a config file to be read in
+/**
+ * @brief A container of arguments which get passed along to 
+ * 
+ * This is an object which has reference pointers to varius bits of information which might be useful.
+ * 
+ * When games are saved, (some of) this will be serialized
+ * 
+ */
 struct GameContext {
     bool isFocused = true;
     SDL_Window *window;
@@ -18,6 +26,7 @@ struct GameContext {
     float yawSensitivity;
     float pitchSensitivity;
     float moveSpeed;
+    TextureArray texture;
 
     uint64_t seed;
 
@@ -29,7 +38,12 @@ struct GameContext {
         GAME_STATE_PAUSED
     } state;
 
-    GameContext() : fov(90.0f), yawSensitivity(0.1f), pitchSensitivity(0.1f) {
+    GameContext() : 
+        fov(90.0f), 
+        yawSensitivity(0.1f), 
+        pitchSensitivity(0.1f), 
+        texture("assets/texturepack-simple.png") // TODO: i want all these variables to come from a config file
+    {
         plr = nullptr;
         world = nullptr;
 

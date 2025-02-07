@@ -1,6 +1,9 @@
 #include "Player.hpp"
+#include "Chunk.hpp"
 
-Player::Player() : camera(), chunkPos()
+#include <iostream>
+
+Player::Player() : camera(), chunkPos(), lastPos()
 {
 }
 
@@ -18,12 +21,14 @@ void Player::Init(GameContext *c, ChunkPos pos)
     movement[5] = false;
 
     camera.aspect = (float)c->aspectRatio;
+    camera.viewport(c->aspectRatio, c->fov);
 }
 
 void Player::OnEvent(GameContext *c, SDL_Event *event)
 {
     if (event->type == SDL_EVENT_WINDOW_RESIZED)
     {
+        c->aspectRatio = (float) event->window.data1 / (float) event->window.data2;
         camera.viewport(c->aspectRatio, c->fov);
     }
     else if (event->type == SDL_EVENT_MOUSE_MOTION)
@@ -47,14 +52,21 @@ void Player::OnEvent(GameContext *c, SDL_Event *event)
 void Player::Update(GameContext *c, double deltaTime)
 {
     // handle movement
-    glm::vec3 move = glm::vec3(0.0f);
+    this->lastPos = this->chunkPos;
+    glm::dvec3 move = glm::dvec3(0.0f);
     if (movement[0]) move += camera.forward;
     if (movement[1]) move -= camera.forward;
     if (movement[2]) move -= camera.right;
     if (movement[3]) move += camera.right;
     if (movement[4]) move += camera.up;
     if (movement[5]) move -= camera.up;
-    camera.translate(move * (c->moveSpeed * (float)deltaTime));
+    move = glm::normalize(move); // we want constant moving velocity
+    ChunkPos newPos = this->chunkPos + this->pos + move;
+    if (this->chunkPos + newPos != this->chunkPos)
+    {
+        this->chunkPos = newPos; // so now we have shifted
+        this->pos = Chunk::remainder(pos + move);
+    }
 }
 
 void Player::Render(GameContext *c)

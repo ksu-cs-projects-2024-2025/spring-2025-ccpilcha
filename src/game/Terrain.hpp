@@ -1,4 +1,7 @@
+#pragma once
+
 #include <cstdint>
+#include <vector>
 
 #include "Chunk.hpp"
 
@@ -6,5 +9,5 @@ struct Terrain {
     uint64_t seed;
 
     Terrain() : seed(0) {}
-    Chunk generateChunk(CHUNK_POS_X_TYPE x, CHUNK_POS_X_TYPE y, CHUNK_POS_X_TYPE z);
+    std::vector<CHUNK_DATA> generateChunk(ChunkPos pos);
 };

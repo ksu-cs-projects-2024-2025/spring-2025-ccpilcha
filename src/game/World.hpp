@@ -5,13 +5,14 @@
 
 #include "GameContext.hpp"
 #include "Terrain.hpp"
-#include "../gfx/Camera.hpp"
 #include "../gfx/ChunkRenderer.hpp"
+#include "Chunk.hpp"
 
 class World {
     ChunkRenderer renderer;
     Terrain terrain;
     std::unordered_map<ChunkPos, Chunk> chunks; // this is a map of chunk positions to chunks loaded in memory
+    void LoadChunks();
 public:
     World();
     ~World();

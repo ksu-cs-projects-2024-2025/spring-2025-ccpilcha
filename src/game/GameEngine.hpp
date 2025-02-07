@@ -1,14 +1,14 @@
 #pragma once
 
-#include "World.hpp"
+#include "GameContext.hpp"
 #include "Player.hpp"
 
-#ifndef GAMEENGINE_H
-#define GAMEENGINE_H
+class World;
+
 class GameEngine
 {
     GameContext *context;
-    World world;
+    World *world;
     Player plr;
 public:
     GameEngine(GameContext *c);
@@ -18,4 +18,3 @@ public:
     SDL_AppResult Update(double deltaTime);
     SDL_AppResult Render();
 };
-#endif

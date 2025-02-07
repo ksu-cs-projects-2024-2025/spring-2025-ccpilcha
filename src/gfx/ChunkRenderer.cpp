@@ -1,5 +1,11 @@
 #include "ChunkRenderer.hpp"
 
+std::vector<VertexAttribute> ChunkVertexAttribs = {
+	{3, GL_INT, GL_FALSE, sizeof(ChunkVertex), 0},
+	{1, GL_INT, GL_FALSE, sizeof(ChunkVertex), (void*)(3 * sizeof(int))},
+	{1, GL_INT, GL_FALSE, sizeof(ChunkVertex), (void*)(4 * sizeof(int))}
+};
+
 ChunkRenderer::ChunkRenderer() : chunkShader("assets/shaders/chunk.v.glsl", "assets/shaders/chunk.f.glsl")
 {
 
@@ -12,10 +18,13 @@ ChunkRenderer::~ChunkRenderer()
 void ChunkRenderer::Init(GameContext *c)
 {
 	glCall(glGenVertexArrays(1, &this->vao));
-}
-
-void ChunkRenderer::OnEvent(GameContext *c, SDL_Event *event)
-{
+    glCall(glBindVertexArray(this->vao));
+	int num = 0;
+	for (auto& vAttrib : ChunkVertexAttribs)
+	{
+		vAttrib.enable(num++);
+	}
+    glCall(glBindVertexArray(0)); // just for cleanliness we can clean the pipeline
 }
 
 void ChunkRenderer::Update(GameContext *c, double deltaTime)

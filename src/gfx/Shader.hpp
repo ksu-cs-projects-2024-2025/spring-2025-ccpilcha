@@ -1,8 +1,6 @@
 // USES LearnOpenGL's Shader class
 // https://learnopengl.com/code_viewer_gh.php?code=includes/learnopengl/shader.h
-
-#ifndef SHADER_H
-#define SHADER_H
+#pragma once
 
 #include <glad/gl.h>
 #include <glm/glm.hpp>
@@ -173,5 +171,3 @@ private:
         }
     }
 };
-
-#endif

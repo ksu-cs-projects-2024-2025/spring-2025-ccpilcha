@@ -1,4 +1,5 @@
 #include "Chunk.hpp"
+#include <math.h>
 
 Chunk::Chunk() : pos(), blocks()
 {
@@ -12,10 +13,15 @@ void Chunk::Init(GameContext *c)
 {
 }
 
-void Chunk::Update(GameContext *c, double deltaTime)
+/**
+ * @brief This is a quick way to see if a position is outside of the boundaries for a chunk.
+ * 
+ * @param input 
+ * @return std::pair<ChunkPos, glm::vec3> 
+ */
+glm::vec3 Chunk::remainder(glm::vec3 input)
 {
-}
-
-void Chunk::Render(GameContext *c)
-{
+    ChunkPos q{(int64_t)floor(input.x / CHUNK_X_SIZE), (int64_t)floor(input.y / CHUNK_Y_SIZE), (int64_t)floor(input.z / CHUNK_Z_SIZE)};
+    glm::vec3 r(input.x - q.x * CHUNK_X_SIZE, input.y - q.y * CHUNK_Y_SIZE, input.z - q.z * CHUNK_Z_SIZE);
+    return r;
 }

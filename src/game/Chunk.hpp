@@ -1,6 +1,8 @@
 #pragma once
 
+#include <array>
 #include <vector>
+#include <glm/glm.hpp>
 
 #include "GameContext.hpp"
 
@@ -12,6 +14,8 @@
 #define CHUNK_POS_X_TYPE int64_t
 #define CHUNK_POS_Y_TYPE int64_t
 #define CHUNK_POS_Z_TYPE int64_t
+
+#define CHUNK_DATA std::array<std::array<BLOCK_ID_TYPE, CHUNK_X_SIZE>, CHUNK_Y_SIZE>
 
 struct ChunkPos
 {
@@ -27,6 +31,23 @@ struct ChunkPos
     bool operator!=(const ChunkPos &other) const
     {
         return x != other.x || y != other.y || z != other.z;
+    }
+    
+    /**
+     * @brief Helpful way to find the chunk position relative to one point
+     * This will be a helpful conversion
+     * We should be okay with integer casting; the distance shouldn't ever need to 
+     * exceed double precision since the point is that the input is relative
+     * 
+     * @param input 
+     * @return ChunkPos 
+     */
+    ChunkPos operator+(const glm::vec3 &input) const {
+        return ChunkPos{x + (int64_t)floor(input.x / CHUNK_X_SIZE), y + (int64_t)floor(input.y / CHUNK_Y_SIZE), z + (int64_t)floor(input.z / CHUNK_Z_SIZE)};
+    }
+
+    ChunkPos operator+(const glm::dvec3 &input) const {
+        return ChunkPos{x + (int64_t)floor(input.x / CHUNK_X_SIZE), y + (int64_t)floor(input.y / CHUNK_Y_SIZE), z + (int64_t)floor(input.z / CHUNK_Z_SIZE)};
     }
     
     ChunkPos operator+(const ChunkPos &other) const {
@@ -58,8 +79,8 @@ class Chunk
 {
     // the idea here is that we can store the block IDs in a 3D array, but condense along the z-axis
     // if a chunk is empty (air) then this will be empty as well
-    std::vector<BLOCK_ID_TYPE[CHUNK_X_SIZE][CHUNK_Y_SIZE]> blocks;
 public:
+    std::vector<CHUNK_DATA> blocks;
     ChunkPos pos;
     bool dirty;
     bool changed;
@@ -67,8 +88,7 @@ public:
     Chunk();
     ~Chunk();
     void Init(GameContext* c);
-    void Update(GameContext* c, double deltaTime);
-    void Render(GameContext* c);
+    static glm::vec3 remainder(glm::vec3 input);
 };
 
 

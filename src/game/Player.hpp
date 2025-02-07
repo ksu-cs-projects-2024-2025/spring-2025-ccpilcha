@@ -11,7 +11,8 @@ class Player
 {
     bool movement[6];
 public:
-    ChunkPos chunkPos;
+    ChunkPos chunkPos, lastPos;
+    glm::dvec3 pos;
     Camera camera;
     Player();
     ~Player();

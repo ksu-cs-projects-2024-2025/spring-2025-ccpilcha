@@ -1,11 +1,18 @@
 #include "Terrain.hpp"
 
-Chunk Terrain::generateChunk(CHUNK_POS_X_TYPE x, CHUNK_POS_X_TYPE y, CHUNK_POS_X_TYPE z)
-{
-    // TODO: implement this
+#include <array>
 
+
+std::vector<CHUNK_DATA> Terrain::generateChunk(ChunkPos pos)
+{
+    std::vector<CHUNK_DATA> data = std::vector<CHUNK_DATA>();
+    
+    // TODO: implement this
     // this needs a Perlin noise generator
 
     // will return an empty chunk for now
-    return Chunk();
+    CHUNK_DATA layer = CHUNK_DATA();
+    layer[0][0] = 1;
+    data.push_back(layer);
+    return data;
 }
