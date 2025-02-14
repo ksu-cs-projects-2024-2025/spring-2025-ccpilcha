@@ -50,7 +50,6 @@ FetchContent_Declare(
 	glm
 	GIT_REPOSITORY https://github.com/g-truc/glm.git
 	GIT_TAG 1.0.1
-	GIT_SHALLOW		TRUE
 )
 
 FetchContent_MakeAvailable(glm)
@@ -88,7 +87,7 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(SDL3_ttf)
 
-# Set up SDL3 and its modules as interface libraries
+
 add_library(SDL3 INTERFACE)
 target_include_directories(SDL3 INTERFACE ${SDL3_SOURCE_DIR}/include)
 target_link_libraries(SDL3 INTERFACE SDL3::SDL3)
@@ -132,11 +131,19 @@ target_include_directories(glad PUBLIC ${glad_SOURCE_DIR}/src/include)
 add_executable(${EXECUTABLE_NAME})
 
 # Link everything to your project
-target_link_libraries(${EXECUTABLE_NAME} glad SDL3_image SDL3_mixer SDL3_ttf SDL3)
+target_link_libraries(${EXECUTABLE_NAME} glm glad SDL3_image SDL3_mixer SDL3_ttf SDL3)
 target_include_directories(${EXECUTABLE_NAME} PRIVATE ${glad_SOURCE_DIR}/src/include)
 
-# Add your sources to the target
-target_sources(${EXECUTABLE_NAME} 
-PRIVATE 
-    src/main.cpp
+add_custom_target(assets
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_LIST_DIR}/assets ${CMAKE_BINARY_DIR}/assets
 )
+add_dependencies(${EXECUTABLE_NAME} assets)
+
+# Find all .cpp files automatically
+file(GLOB_RECURSE SRC_FILES "src/*.cpp")
+
+# Ensure the headers are available for the compiler
+target_include_directories(${EXECUTABLE_NAME} PRIVATE src src/game src/gfx src/util)
+
+# Add your sources to the target
+target_sources(${EXECUTABLE_NAME} PRIVATE ${SRC_FILES})
