@@ -7,7 +7,7 @@
 // Function to crop an SDL surface to a specific region
 SDL_Surface* cropSurface(SDL_Surface* surface, int x, int y, int width, int height) {
     // Create a new surface with the desired dimensions
-    SDL_Surface* croppedSurface = SDL_CreateSurface(width, height, SDL_PIXELFORMAT_RGB24);
+    SDL_Surface* croppedSurface = SDL_CreateSurface(width, height, SDL_PIXELFORMAT_RGBA32);
 
     if (croppedSurface == nullptr) {
         std::cerr << "SDL_CreateRGBSurface failed: " << SDL_GetError() << std::endl;

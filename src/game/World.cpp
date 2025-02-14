@@ -15,15 +15,9 @@ BLOCK_ID_TYPE World::GetBlockId(const ChunkPos &pos, int8_t x, int8_t y, int8_t 
     // check if this chunk exists
     if (!chunks.contains(adjusted)) return 0; // TODO: it would be cool if there was some lookup table or we could have macros for block IDs
 
-    //return chunks[adjusted].GetBlockId(x,y,z);
-    return 0;
+    return chunks[adjusted]->GetBlockId(x,y,z);
 }
 
-
-// Shared queue and synchronization tools
-std::queue<ChunkPos> chunkQueue;
-std::mutex queueMutex;
-std::condition_variable queueCV;
 bool gameRunning = true;
 
 /**
@@ -36,32 +30,41 @@ void World::LoadChunks()
     // TODO: this thread needs to end when the game exits the playing state
     while (true)
     {
-        ChunkPos chunk;
+        ChunkPos pos;
 
         {
-            std::unique_lock<std::mutex> lock(queueMutex);
-            queueCV.wait(lock, [] { return !chunkQueue.empty() || !gameRunning; });
+            std::unique_lock<std::mutex> lock(queueLoadMutex);
+            queueCV.wait(lock, [this] { return !chunkLoadQueue.empty() || !gameRunning; });
 
             if (!gameRunning) return;  // Exit thread when game ends
 
-            chunk = chunkQueue.front();
-            chunkQueue.pop();
+            pos = chunkLoadQueue.front();
+            chunkLoadQueue.pop();
         }
 
+        std::vector<CHUNK_DATA> data = this->terrain.generateChunk(pos);
 
+        this->chunks[pos]->blocks.insert(this->chunks[pos]->blocks.end(), data.begin(), data.end());
+
+        {
+            std::lock_guard<std::mutex> lock(renderer.queueRenderMutex);
+            renderer.chunkRenderQueue.push(pos);
+        }
+        renderer.queueCV.notify_one();  // Wake up the chunk loader thread
+        // we should then queue another thread responsible for loading chunk vertex data
     }
 }
 
 // Function to request a chunk load
-void requestChunkLoad(ChunkPos pos) {
+void World::requestChunkLoad(ChunkPos pos) {
     {
-        std::lock_guard<std::mutex> lock(queueMutex);
-        chunkQueue.push(pos);
+        std::lock_guard<std::mutex> lock(queueLoadMutex);
+        chunkLoadQueue.push(pos);
     }
     queueCV.notify_one();  // Wake up the chunk loader thread
 }
 
-World::World() : terrain(), chunks(), renderer()
+World::World() : terrain(), chunks(), renderer(this)
 {
 
 }
@@ -74,8 +77,10 @@ World::World() : terrain(), chunks(), renderer()
 void World::Init(GameContext *c)
 {
     terrain.seed = c->seed;
+    renderer.Init(c);
     // TODO: create thread which works on generating the world
-    //std::thread(LoadChunks);
+    std::thread thr(&World::LoadChunks, this);
+    thr.detach();
 }
 
 void World::OnEvent(GameContext *c, SDL_Event *event)
@@ -83,7 +88,7 @@ void World::OnEvent(GameContext *c, SDL_Event *event)
 }
 
 /**
- * @brief 
+ * @brief This handles the loading and unloading of chunks based upon a player's position and render distance.
  * 
  * @param c 
  * @param deltaTime 
@@ -92,9 +97,21 @@ void World::Update(GameContext *c, double deltaTime)
 {
     // we need to loop through chunks in a radius around the camera.
     // this needs to work from the center outward
+    ChunkPos pos = c->plr->chunkPos;
+    // check which chunks need to be loaded
+    if (!ChunkLoaded(pos)) {
+        this->chunks.emplace(pos, std::make_unique<Chunk>());
+        this->chunks[pos]->Init(c);
+        this->requestChunkLoad(pos);
+    }
 
     // needs to be aware of the chunks which are queued for render
     renderer.Update(c, deltaTime);
+}
+
+bool World::ChunkLoaded(const ChunkPos &pos)
+{
+    return this->chunks.contains(pos);
 }
 
 void World::Render(GameContext *c)

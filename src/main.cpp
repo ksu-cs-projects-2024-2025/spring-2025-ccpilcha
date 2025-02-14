@@ -20,7 +20,7 @@ GameContext				*context;
 static SDL_Window		*window = NULL;
 static SDL_GLContext	G_OpenGL_CONTEXT;
 
-static double   deltaTime = 0.0;
+static double   accTime = 0.0;
 static Uint64   then = 0;
 static Uint64   frequency; 
 static int      frameCount = 0;
@@ -82,6 +82,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
 
     SDL_GL_MakeCurrent(window, G_OpenGL_CONTEXT);
 
+    glViewport(0, 0, 800, 600);
     glCall(glEnable(GL_DEPTH_TEST));
     glCall(glEnable(GL_CULL_FACE));
 
@@ -94,6 +95,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
 
     context = new GameContext();
     context->window = window;
+    context->aspectRatio = 800/600.f;
     game = new GameEngine(context);
     game->Init();
 
@@ -106,6 +108,10 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
     if (event->type == SDL_EVENT_QUIT) {
         return SDL_APP_SUCCESS;  /* end the program, reporting success to the OS. */
     }
+
+    if (event->type == SDL_EVENT_WINDOW_RESIZED){ 
+        glViewport(0, 0, event->window.data1, event->window.data2);
+    }
     
     return game->OnEvent(event);
 }
@@ -114,12 +120,13 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
 SDL_AppResult SDL_AppIterate(void *appstate)
 {
     Uint64 now = SDL_GetPerformanceCounter();
-    deltaTime += (double)(now - then) / frequency;
+    double deltaTime = (double)(now - then) / frequency;
+    accTime += deltaTime;
     then = now;
     frameCount++;
-    if (deltaTime >= 0.25) {
-        fprintf(stdout, "\rFPS: %.6f", (double) frameCount/deltaTime);
-        deltaTime = 0.0;
+    if (accTime >= 0.25) {
+        fprintf(stdout, "\rFPS: %.6f", (double) frameCount/accTime);
+        accTime = 0.0;
         frameCount = 0;
         std::cout.flush();
     }

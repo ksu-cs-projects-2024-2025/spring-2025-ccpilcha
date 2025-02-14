@@ -3,7 +3,7 @@
 
 #include <iostream>
 
-Player::Player() : camera(), chunkPos(), lastPos()
+Player::Player() : camera(), chunkPos({0,0,0}), lastPos({0,0,0}), pos(0,0,0)
 {
 }
 
@@ -53,20 +53,24 @@ void Player::Update(GameContext *c, double deltaTime)
 {
     // handle movement
     this->lastPos = this->chunkPos;
-    glm::dvec3 move = glm::dvec3(0.0f);
+    glm::dvec3 move(0,0,0);
     if (movement[0]) move += camera.forward;
     if (movement[1]) move -= camera.forward;
     if (movement[2]) move -= camera.right;
     if (movement[3]) move += camera.right;
     if (movement[4]) move += camera.up;
     if (movement[5]) move -= camera.up;
-    move = glm::normalize(move); // we want constant moving velocity
-    ChunkPos newPos = this->chunkPos + this->pos + move;
-    if (this->chunkPos + newPos != this->chunkPos)
+    if (glm::length(move) > 0)
+        move = c->moveSpeed * deltaTime * glm::normalize(move); // we want constant moving velocity
+    this->pos += move;
+    ChunkPos newPos = this->chunkPos + this->pos;
+    if (newPos != this->chunkPos)
     {
         this->chunkPos = newPos; // so now we have shifted
-        this->pos = Chunk::remainder(pos + move);
+        this->pos = Chunk::remainder(this->pos);
     }
+    camera.translate(pos);
+
 }
 
 void Player::Render(GameContext *c)

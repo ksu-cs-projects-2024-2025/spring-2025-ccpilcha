@@ -3,8 +3,8 @@
 struct ChunkVertex
 {
     int position[3]; // relative to current chunk position
-    int faceNum;
     int blockId;
+    int faceNum;
     //	0	FRONT	-X (X = 0)
     //	1	BACK	+X (X = 1)
     //	2	LEFT	-Y (Y = 0)

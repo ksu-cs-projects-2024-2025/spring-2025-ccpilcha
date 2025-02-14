@@ -11,6 +11,21 @@ Chunk::~Chunk()
 
 void Chunk::Init(GameContext *c)
 {
+
+}
+
+void Chunk::Load(std::vector<CHUNK_DATA> data)
+{
+    // TODO: mutex?
+    this->blocks = data;
+    this->dirty = true;
+    this->loaded = true;
+}
+
+BLOCK_ID_TYPE Chunk::GetBlockId(int8_t x, int8_t y, int8_t z)
+{
+    if (z > blocks.size()) return 0;
+    return blocks[z][y][x];
 }
 
 /**

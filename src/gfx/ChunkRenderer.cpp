@@ -1,12 +1,84 @@
 #include "ChunkRenderer.hpp"
+#include "ChunkMesh.hpp"
 
-std::vector<VertexAttribute> ChunkVertexAttribs = {
-	{3, GL_INT, GL_FALSE, sizeof(ChunkVertex), 0},
-	{1, GL_INT, GL_FALSE, sizeof(ChunkVertex), (void*)(3 * sizeof(int))},
-	{1, GL_INT, GL_FALSE, sizeof(ChunkVertex), (void*)(4 * sizeof(int))}
+#include "World.hpp"
+
+// Neighbor offsets as (x, y, z) tuples
+constexpr int8_t nOffsets[6][3] = {
+	{-1, 0, 0}, // -x
+	{1, 0, 0},	// +x
+	{0, -1, 0},	// -y
+	{0, 1, 0},	// +y
+	{0, 0, -1},  // -z
+	{0, 0, 1}  // +z
 };
 
-ChunkRenderer::ChunkRenderer() : chunkShader("assets/shaders/chunk.v.glsl", "assets/shaders/chunk.f.glsl")
+void ChunkRenderer::RenderChunkAt(ChunkPos pos)
+{
+	if (!this->chunkMeshes.contains(pos)) {
+		this->chunkMeshes.emplace(pos, std::make_unique<ChunkMesh>());
+	}
+
+	Chunk *chunk = this->world->chunks[pos].get();
+
+	if (!chunk->dirty) return;
+
+	std::vector<ChunkVertex> newVerts;
+
+	// then update
+	for (int z = 0; z < chunk->blocks.size(); z++) {
+	for (int y = 0; y < CHUNK_Y_SIZE; y++) {
+	for (int x = 0; x < CHUNK_X_SIZE; x++) {
+		BLOCK_ID_TYPE blockId = chunk->blocks.at(z)[y][x];
+		if (blockId <= 0) continue;
+		for (int face = 0; face < 6; face++) {
+			int nx = x + nOffsets[face][0];
+			int ny = y + nOffsets[face][1];
+			int nz = z + nOffsets[face][2];
+
+			uint16_t neighborBlockId = this->world->GetBlockId(chunk->pos, nx, ny, nz);
+			if (neighborBlockId <= 0) {
+				// Add the face to the mesh
+				std::vector<ChunkVertex> blockVerts = {
+					{ x, y, z, blockId, face},
+					{ x, y, z, blockId, face},
+					{ x, y, z, blockId, face},
+					{ x, y, z, blockId, face},
+					{ x, y, z, blockId, face},
+					{ x, y, z, blockId, face},
+				};
+				newVerts.insert(newVerts.end(), blockVerts.begin(), blockVerts.end());
+			}
+		}
+	}
+	}
+	}
+
+	this->chunkMeshes[pos]->Load(newVerts);
+}
+
+void ChunkRenderer::RenderChunks()
+{
+
+    // TODO: this thread needs to end when the game exits the playing state
+    while (true)
+    {
+        ChunkPos pos;
+
+        {
+            std::unique_lock<std::mutex> lock(queueRenderMutex);
+            queueCV.wait(lock, [this] { return !chunkRenderQueue.empty(); });
+
+            pos = chunkRenderQueue.front();
+            chunkRenderQueue.pop();
+        }
+
+        this->RenderChunkAt(pos);
+
+    }
+}
+
+ChunkRenderer::ChunkRenderer(World *w) : world(w), chunkShader("assets/shaders/chunk.v.glsl", "assets/shaders/chunk.f.glsl"), chunkMeshes()
 {
 
 }
@@ -17,14 +89,9 @@ ChunkRenderer::~ChunkRenderer()
 
 void ChunkRenderer::Init(GameContext *c)
 {
-	glCall(glGenVertexArrays(1, &this->vao));
-    glCall(glBindVertexArray(this->vao));
-	int num = 0;
-	for (auto& vAttrib : ChunkVertexAttribs)
-	{
-		vAttrib.enable(num++);
-	}
-    glCall(glBindVertexArray(0)); // just for cleanliness we can clean the pipeline
+
+    std::thread thr(&ChunkRenderer::RenderChunks, this);
+    thr.detach();
 }
 
 void ChunkRenderer::Update(GameContext *c, double deltaTime)
@@ -34,9 +101,30 @@ void ChunkRenderer::Update(GameContext *c, double deltaTime)
     
     // when chunks are modified, their pointer will be placed in a queue in world called "Dirty" to signal that the chunk has been updated
     // new chunk needs to have the same vao used
+
+	for (auto &meshPair : chunkMeshes) {
+		chunkShader.use();
+		meshPair.second->Update(c);
+		meshPair.second->Swap();
+		meshPair.second->UploadToGPU();
+	}
 }
 
 void ChunkRenderer::Render(GameContext *c)
 {
-    chunkShader.use(); // we are using the same shader each time
+	for (auto &meshPair : chunkMeshes) {
+		c->texture.use(GL_TEXTURE0);
+		
+		chunkShader.use(); // we are using the same shader each time
+		chunkShader.setInt("textureAtlas", 0);
+		chunkShader.setMat4("projection", c->plr->camera.proj);
+		chunkShader.setMat4("view", c->plr->camera.view);
+		chunkShader.setMat4("model", glm::translate(glm::mat4(1.0f), 
+			glm::vec3(c->plr->chunkPos.x * CHUNK_X_SIZE * -1.0f, 
+				c->plr->chunkPos.y * CHUNK_Y_SIZE * -1.0f, 
+				c->plr->chunkPos.z * CHUNK_Z_SIZE * -1.0f)));
+		chunkShader.setFloat("opacity", 1.0f);
+		chunkShader.setVec3("hint", glm::vec3(1.0f, 1.0f, 1.0f));
+		meshPair.second->Render();
+	}
 }

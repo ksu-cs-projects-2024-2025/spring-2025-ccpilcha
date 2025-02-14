@@ -4,27 +4,32 @@
 #include <unordered_map>
 #include <queue>
 
+#include <thread>
+
 #include "../game/GameContext.hpp"
 #include "VertexAttribute.hpp"
+#include "ChunkPos.hpp"
 #include "ChunkMesh.hpp"
 #include "ChunkVertex.hpp"
 #include "Shader.hpp"
 
-class ChunkMesh;
+class World;
 
 class ChunkRenderer
 {   
     GLuint vao;
     Shader chunkShader;
-    std::vector<VertexAttribute> ChunkVertexAttribs = {
-        {3, GL_INT, GL_FALSE, sizeof(ChunkVertex), 0},
-        {1, GL_INT, GL_FALSE, sizeof(ChunkVertex), (void*)(3 * sizeof(int))},
-        {1, GL_INT, GL_FALSE, sizeof(ChunkVertex), (void*)(4 * sizeof(int))}
-    };
-    std::unordered_map<ChunkPos, ChunkMesh> chunkMeshes;
+    std::unordered_map<ChunkPos, std::unique_ptr<ChunkMesh>> chunkMeshes;
     std::queue<ChunkMesh*> queue;
+    World* world;
+    void RenderChunkAt(ChunkPos pos);
+    void RenderChunks();
+
 public:
-    ChunkRenderer();
+    std::queue<ChunkPos> chunkRenderQueue;
+    std::mutex queueRenderMutex;
+    std::condition_variable queueCV;
+    ChunkRenderer(World*);
     ~ChunkRenderer();
     void Init(GameContext *c);
     void Update(GameContext *c, double deltaTime);

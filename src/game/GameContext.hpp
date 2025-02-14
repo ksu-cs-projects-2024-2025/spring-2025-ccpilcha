@@ -28,7 +28,8 @@ struct GameContext {
     float moveSpeed;
     TextureArray texture;
 
-    uint64_t seed;
+    uint64_t seed; // world seed
+    int renderDistance; // radius in chunks
 
     SDL_Keycode forward, backward, left, right, up, down;
 
@@ -47,7 +48,9 @@ struct GameContext {
         plr = nullptr;
         world = nullptr;
 
-        moveSpeed = 0.1f;
+        moveSpeed = 3.f;
+
+        renderDistance = 3;
 
         forward = SDLK_W;
         backward = SDLK_S;
