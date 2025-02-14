@@ -16,7 +16,7 @@ constexpr int8_t nOffsets[6][3] = {
 void ChunkRenderer::RenderChunkAt(ChunkPos pos)
 {
 	if (!this->chunkMeshes.contains(pos)) {
-		this->chunkMeshes.emplace(pos, std::make_unique<ChunkMesh>());
+		this->chunkMeshes.emplace(pos, std::make_shared<ChunkMesh>());
 	}
 
 	Chunk *chunk = this->world->chunks[pos].get();
@@ -44,12 +44,12 @@ void ChunkRenderer::RenderChunkAt(ChunkPos pos)
 			if (neighborBlockId <= 0) {
 				// Add the face to the mesh
 				std::vector<ChunkVertex> blockVerts = {
-					{ x, y, z, blockId, face},
-					{ x, y, z, blockId, face},
-					{ x, y, z, blockId, face},
-					{ x, y, z, blockId, face},
-					{ x, y, z, blockId, face},
-					{ x, y, z, blockId, face},
+					{ x, y, z, blockId, face },
+					{ x, y, z, blockId, face },
+					{ x, y, z, blockId, face },
+					{ x, y, z, blockId, face },
+					{ x, y, z, blockId, face },
+					{ x, y, z, blockId, face },
 				};
 				newVerts.insert(newVerts.end(), blockVerts.begin(), blockVerts.end());
 			}
@@ -76,7 +76,7 @@ void ChunkRenderer::RenderChunks()
             pos = chunkRenderQueue.front();
             chunkRenderQueue.pop();
         }
-
+		
         this->RenderChunkAt(pos);
 
     }

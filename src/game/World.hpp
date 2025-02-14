@@ -21,7 +21,7 @@ public:
     std::queue<ChunkPos> chunkLoadQueue;
     std::mutex queueLoadMutex;
     std::condition_variable queueCV;
-    std::unordered_map<ChunkPos, std::unique_ptr<Chunk>> chunks; // this is a map of chunk positions to chunks loaded in memory
+    std::unordered_map<ChunkPos, std::shared_ptr<Chunk>> chunks; // this is a map of chunk positions to chunks loaded in memory
     World();
     ~World();
     void Init(GameContext *c);

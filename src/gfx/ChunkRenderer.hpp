@@ -19,7 +19,7 @@ class ChunkRenderer
 {   
     GLuint vao;
     Shader chunkShader;
-    std::unordered_map<ChunkPos, std::unique_ptr<ChunkMesh>> chunkMeshes;
+    std::unordered_map<ChunkPos, std::shared_ptr<ChunkMesh>> chunkMeshes;
     std::queue<ChunkMesh*> queue;
     World* world;
     void RenderChunkAt(ChunkPos pos);

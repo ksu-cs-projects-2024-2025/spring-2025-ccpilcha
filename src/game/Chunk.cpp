@@ -7,6 +7,7 @@ Chunk::Chunk() : pos(), blocks()
 
 Chunk::~Chunk()
 {
+    1;
 }
 
 void Chunk::Init(GameContext *c)
@@ -24,6 +25,10 @@ void Chunk::Load(std::vector<CHUNK_DATA> data)
 
 BLOCK_ID_TYPE Chunk::GetBlockId(int x, int y, int z)
 {
+    if (this == NULL)
+    {
+        return 0;
+    }
     if (z + 1 > blocks.size()) return 0;
     BLOCK_ID_TYPE block = blocks[z][y][x];
     return block;

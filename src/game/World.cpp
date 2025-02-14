@@ -49,32 +49,19 @@ void World::LoadChunks()
 
             pos = chunkLoadQueue.front();
             chunkLoadQueue.pop();
-        }
 
-        std::vector<CHUNK_DATA> data = this->terrain.generateChunk(pos);
-
-        //TODO: replace this with mutex. there is a race condition here!
-        while (this->chunks[pos] == nullptr) {
-            1; 
+            std::vector<CHUNK_DATA> data = this->terrain.generateChunk(pos);
+            
+            this->chunks[pos]->blocks.insert(this->chunks[pos]->blocks.end(), data.begin(), data.end());
+    
+            {
+                std::lock_guard<std::mutex> lock(renderer.queueRenderMutex);
+                renderer.chunkRenderQueue.push(pos);
+            }
+            renderer.queueCV.notify_one();  // Wake up the chunk loader thread
+            // we should then queue another thread responsible for loading chunk vertex data
         }
-        this->chunks[pos]->blocks.insert(this->chunks[pos]->blocks.end(), data.begin(), data.end());
-
-        {
-            std::lock_guard<std::mutex> lock(renderer.queueRenderMutex);
-            renderer.chunkRenderQueue.push(pos);
-        }
-        renderer.queueCV.notify_one();  // Wake up the chunk loader thread
-        // we should then queue another thread responsible for loading chunk vertex data
     }
-}
-
-// Function to request a chunk load
-void World::requestChunkLoad(ChunkPos pos) {
-    {
-        std::lock_guard<std::mutex> lock(queueLoadMutex);
-        chunkLoadQueue.push(pos);
-    }
-    queueCV.notify_one();  // Wake up the chunk loader thread
 }
 
 World::World() : terrain(), chunks(), renderer(this)
@@ -91,6 +78,7 @@ void World::Init(GameContext *c)
 {
     terrain.seed = c->seed;
     renderer.Init(c);
+    this->chunks.reserve(1000);
     // TODO: create thread which works on generating the world
     std::thread thr(&World::LoadChunks, this);
     thr.detach();
@@ -112,21 +100,24 @@ void World::Update(GameContext *c, double deltaTime)
     // this needs to work from the center outward
     ChunkPos pPos = c->plr->chunkPos;
     // check which chunks need to be loaded
+    std::unique_lock<std::mutex> lock(queueLoadMutex);
+    std::lock_guard<std::mutex> lock2(renderer.queueRenderMutex);
     if (pPos != c->plr->lastPos)
     {
-        for (int dz = -4; dz < 4; dz++) {
-        for (int dy = -4; dy < 4; dy++) {
-        for (int dx = -4; dx < 4; dx++) {
+        for (int dz = -2; dz < 2; dz++) {
+        for (int dy = -16; dy < 16; dy++) {
+        for (int dx = -16; dx < 16; dx++) {
             int x = pPos.x + dx, y = pPos.y + dy, z = pPos.z + dz;
-            if (dx*dx + dy*dy > 2*2) continue;
+            if (dx*dx + dy*dy > 32*32) continue;
             ChunkPos nPos({x,y,z});
             if (!ChunkLoaded(nPos)) {
-                this->chunks.emplace(nPos, std::make_unique<Chunk>());
+                this->chunks[nPos] = std::make_shared<Chunk>();
                 this->chunks[nPos]->Init(c);
-                this->requestChunkLoad(nPos);
+                chunkLoadQueue.push(nPos);
             }
         }}}   
     }
+    queueCV.notify_one();  // Wake up the chunk loader thread
 
     // needs to be aware of the chunks which are queued for render
     renderer.Update(c, deltaTime);
