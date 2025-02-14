@@ -3,7 +3,7 @@
 
 #include <iostream>
 
-Player::Player() : camera(), chunkPos({0,0,0}), lastPos({0,0,0}), pos(0,0,0)
+Player::Player() : camera(), chunkPos({0,0,2}), lastPos({-1,-1,-1}), pos(0,0,0)
 {
 }
 

@@ -33,15 +33,15 @@ SDL_AppResult GameEngine::OnEvent(SDL_Event *event) {
     }
     if (SDL_GetWindowRelativeMouseMode(context->window) != context->isFocused) 
         SDL_SetWindowRelativeMouseMode(context->window, context->isFocused);
-    plr.OnEvent(context, event);
     world->OnEvent(context, event);
+    plr.OnEvent(context, event);
                 
     return SDL_APP_CONTINUE;
 }
 
 SDL_AppResult GameEngine::Update(double deltaTime) {
-    plr.Update(context, deltaTime);
     world->Update(context, deltaTime);
+    plr.Update(context, deltaTime);
     return SDL_APP_CONTINUE;
 }
 
@@ -49,7 +49,7 @@ SDL_AppResult GameEngine::Render() {
     float color = context->plr->camera.pitch*0.002f;
     glCall(glClearColor(0.1f + color, 0.4f + color, 0.6f + color, 1.0f));
     glCall(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
-    plr.Render(context);
     world->Render(context);
+    plr.Render(context);
     return SDL_APP_CONTINUE;
 }

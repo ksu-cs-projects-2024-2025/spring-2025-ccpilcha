@@ -8,25 +8,21 @@ BLOCK_ID_TYPE World::GetBlockId(const ChunkPos &pos, int x, int y, int z)
 {
     // make sure this is a proper bound for a chunk
     int dx = 0, dy = 0, dz = 0;
-    if (x < 0)              dx++;
-    if (x >= CHUNK_X_SIZE)  dx--;
-    if (y < 0)              dy++;
-    if (y >= CHUNK_Y_SIZE)  dy--;
-    if (z < 0)              dz++;
-    if (z >= CHUNK_Z_SIZE)  dz--;
-    x += dx * CHUNK_X_SIZE;
-    y += dy * CHUNK_Y_SIZE;
-    z += dz * CHUNK_Z_SIZE;
+    if (x < 0)              dx--;
+    if (x >= CHUNK_X_SIZE)  dx++;
+    if (y < 0)              dy--;
+    if (y >= CHUNK_Y_SIZE)  dy++;
+    if (z < 0)              dz--;
+    if (z >= CHUNK_Z_SIZE)  dz++;
+    x -= dx * CHUNK_X_SIZE;
+    y -= dy * CHUNK_Y_SIZE;
+    z -= dz * CHUNK_Z_SIZE;
     ChunkPos adjusted = pos + ChunkPos{dx,dy,dz};
 
     // check if this chunk exists
     if (!chunks.contains(adjusted)) return 0; // TODO: it would be cool if there was some lookup table or we could have macros for block IDs
 
     BLOCK_ID_TYPE block = chunks[adjusted]->GetBlockId(x,y,z);
-    if (block != 0)
-    {
-        1;
-    }
 
     return block;
 }
@@ -57,6 +53,10 @@ void World::LoadChunks()
 
         std::vector<CHUNK_DATA> data = this->terrain.generateChunk(pos);
 
+        //TODO: replace this with mutex. there is a race condition here!
+        while (this->chunks[pos] == nullptr) {
+            1; 
+        }
         this->chunks[pos]->blocks.insert(this->chunks[pos]->blocks.end(), data.begin(), data.end());
 
         {
@@ -110,12 +110,22 @@ void World::Update(GameContext *c, double deltaTime)
 {
     // we need to loop through chunks in a radius around the camera.
     // this needs to work from the center outward
-    ChunkPos pos = c->plr->chunkPos;
+    ChunkPos pPos = c->plr->chunkPos;
     // check which chunks need to be loaded
-    if (!ChunkLoaded(pos)) {
-        this->chunks.emplace(pos, std::make_unique<Chunk>());
-        this->chunks[pos]->Init(c);
-        this->requestChunkLoad(pos);
+    if (pPos != c->plr->lastPos)
+    {
+        for (int dz = -4; dz < 4; dz++) {
+        for (int dy = -4; dy < 4; dy++) {
+        for (int dx = -4; dx < 4; dx++) {
+            int x = pPos.x + dx, y = pPos.y + dy, z = pPos.z + dz;
+            if (dx*dx + dy*dy > 2*2) continue;
+            ChunkPos nPos({x,y,z});
+            if (!ChunkLoaded(nPos)) {
+                this->chunks.emplace(nPos, std::make_unique<Chunk>());
+                this->chunks[nPos]->Init(c);
+                this->requestChunkLoad(nPos);
+            }
+        }}}   
     }
 
     // needs to be aware of the chunks which are queued for render
