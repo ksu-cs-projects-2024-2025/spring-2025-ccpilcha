@@ -4,18 +4,31 @@
 
 
 // this will allow for checking air blocks, even in neighboring chunks
-BLOCK_ID_TYPE World::GetBlockId(const ChunkPos &pos, int8_t x, int8_t y, int8_t z)
+BLOCK_ID_TYPE World::GetBlockId(const ChunkPos &pos, int x, int y, int z)
 {
     // make sure this is a proper bound for a chunk
-    ChunkPos adjusted = pos + ChunkPos{x/CHUNK_X_SIZE,y/CHUNK_Y_SIZE,z/CHUNK_Z_SIZE};
-    x %= CHUNK_X_SIZE;
-    y %= CHUNK_Y_SIZE;
-    z %= CHUNK_Z_SIZE;
+    int dx = 0, dy = 0, dz = 0;
+    if (x < 0)              dx++;
+    if (x >= CHUNK_X_SIZE)  dx--;
+    if (y < 0)              dy++;
+    if (y >= CHUNK_Y_SIZE)  dy--;
+    if (z < 0)              dz++;
+    if (z >= CHUNK_Z_SIZE)  dz--;
+    x += dx * CHUNK_X_SIZE;
+    y += dy * CHUNK_Y_SIZE;
+    z += dz * CHUNK_Z_SIZE;
+    ChunkPos adjusted = pos + ChunkPos{dx,dy,dz};
 
     // check if this chunk exists
     if (!chunks.contains(adjusted)) return 0; // TODO: it would be cool if there was some lookup table or we could have macros for block IDs
 
-    return chunks[adjusted]->GetBlockId(x,y,z);
+    BLOCK_ID_TYPE block = chunks[adjusted]->GetBlockId(x,y,z);
+    if (block != 0)
+    {
+        1;
+    }
+
+    return block;
 }
 
 bool gameRunning = true;

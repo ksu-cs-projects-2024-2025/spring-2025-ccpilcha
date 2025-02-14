@@ -29,7 +29,7 @@ void ChunkRenderer::RenderChunkAt(ChunkPos pos)
 	for (int z = 0; z < chunk->blocks.size(); z++) {
 	for (int y = 0; y < CHUNK_Y_SIZE; y++) {
 	for (int x = 0; x < CHUNK_X_SIZE; x++) {
-		BLOCK_ID_TYPE blockId = chunk->blocks.at(z)[y][x];
+		BLOCK_ID_TYPE blockId = chunk->blocks[z][y][x];
 		if (blockId <= 0) continue;
 		for (int face = 0; face < 6; face++) {
 			int nx = x + nOffsets[face][0];
@@ -112,19 +112,19 @@ void ChunkRenderer::Update(GameContext *c, double deltaTime)
 
 void ChunkRenderer::Render(GameContext *c)
 {
+	c->texture.use(GL_TEXTURE0);
+	
+	chunkShader.use(); // we are using the same shader each time
+	chunkShader.setInt("textureAtlas", 0);
+	chunkShader.setMat4("projection", c->plr->camera.proj);
+	chunkShader.setMat4("view", c->plr->camera.view);
+	chunkShader.setMat4("model", glm::translate(glm::mat4(1.0f), 
+		glm::vec3(c->plr->chunkPos.x * CHUNK_X_SIZE * -1.0f, 
+			c->plr->chunkPos.y * CHUNK_Y_SIZE * -1.0f, 
+			c->plr->chunkPos.z * CHUNK_Z_SIZE * -1.0f)));
+	chunkShader.setFloat("opacity", 1.0f);
+	chunkShader.setVec3("hint", glm::vec3(1.0f, 1.0f, 1.0f));
 	for (auto &meshPair : chunkMeshes) {
-		c->texture.use(GL_TEXTURE0);
-		
-		chunkShader.use(); // we are using the same shader each time
-		chunkShader.setInt("textureAtlas", 0);
-		chunkShader.setMat4("projection", c->plr->camera.proj);
-		chunkShader.setMat4("view", c->plr->camera.view);
-		chunkShader.setMat4("model", glm::translate(glm::mat4(1.0f), 
-			glm::vec3(c->plr->chunkPos.x * CHUNK_X_SIZE * -1.0f, 
-				c->plr->chunkPos.y * CHUNK_Y_SIZE * -1.0f, 
-				c->plr->chunkPos.z * CHUNK_Z_SIZE * -1.0f)));
-		chunkShader.setFloat("opacity", 1.0f);
-		chunkShader.setVec3("hint", glm::vec3(1.0f, 1.0f, 1.0f));
 		meshPair.second->Render();
 	}
 }

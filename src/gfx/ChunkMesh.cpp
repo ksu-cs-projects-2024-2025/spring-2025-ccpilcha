@@ -13,7 +13,7 @@ std::vector<VertexAttribute> ChunkVertexAttribs = {
 
 ChunkMesh::ChunkMesh() : 
 	meshMutex(std::make_unique<std::mutex>()),
-	meshSwapping(std::make_unique<std::atomic<bool>>(false)),
+	meshSwapping(std::make_unique<std::atomic<bool>>(true)),
 	currentBuffer(&this->bufferA)
 {
 }

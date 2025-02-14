@@ -18,7 +18,7 @@ void main()
 {
     vec3 faceColor = hint;
     // temporary "shadow"
-    if (Face == 4) faceColor = faceColor*1/2.f;
+    if (Face == 4) faceColor = faceColor*2/5.f;
     else if (Face != 5) faceColor = faceColor*2/3.f;
 
     //FragColor = vec4(vec3(texture(textureAtlas, (TexCoord+vec2(mod(tile, tileSize.x), floor(tile/tileSize.x)))*tileSize / atlasSize))*faceColor, opacity);

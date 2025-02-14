@@ -28,6 +28,6 @@ public:
     void OnEvent(GameContext *c, SDL_Event *event);
     void Update(GameContext *c, double deltaTime);
     bool ChunkLoaded(const ChunkPos &pos);
-    BLOCK_ID_TYPE GetBlockId(const ChunkPos &pos, int8_t x, int8_t y, int8_t z);
+    BLOCK_ID_TYPE GetBlockId(const ChunkPos &pos, int x, int y, int z);
     void Render(GameContext *c);
 };

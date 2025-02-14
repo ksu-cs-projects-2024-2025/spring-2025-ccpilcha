@@ -46,8 +46,8 @@ SDL_AppResult GameEngine::Update(double deltaTime) {
 }
 
 SDL_AppResult GameEngine::Render() {
-    float color = 0.5f + context->plr->camera.pitch*0.01f;
-    glCall(glClearColor(0.1f, color, 0.6f, 1.0f));
+    float color = context->plr->camera.pitch*0.002f;
+    glCall(glClearColor(0.1f + color, 0.4f + color, 0.6f + color, 1.0f));
     glCall(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
     plr.Render(context);
     world->Render(context);

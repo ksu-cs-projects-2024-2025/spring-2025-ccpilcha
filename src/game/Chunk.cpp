@@ -22,10 +22,11 @@ void Chunk::Load(std::vector<CHUNK_DATA> data)
     this->loaded = true;
 }
 
-BLOCK_ID_TYPE Chunk::GetBlockId(int8_t x, int8_t y, int8_t z)
+BLOCK_ID_TYPE Chunk::GetBlockId(int x, int y, int z)
 {
-    if (z > blocks.size()) return 0;
-    return blocks[z][y][x];
+    if (z + 1 > blocks.size()) return 0;
+    BLOCK_ID_TYPE block = blocks[z][y][x];
+    return block;
 }
 
 /**

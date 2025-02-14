@@ -48,7 +48,7 @@ struct GameContext {
         plr = nullptr;
         world = nullptr;
 
-        moveSpeed = 3.f;
+        moveSpeed = 20.f;
 
         renderDistance = 3;
 

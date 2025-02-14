@@ -22,6 +22,6 @@ public:
     ~Chunk();
     void Init(GameContext* c);
     void Load(std::vector<CHUNK_DATA> data);
-    BLOCK_ID_TYPE GetBlockId(int8_t x, int8_t y, int8_t z);
+    BLOCK_ID_TYPE GetBlockId(int x, int y, int z);
     static glm::vec3 remainder(glm::vec3 input);
 };

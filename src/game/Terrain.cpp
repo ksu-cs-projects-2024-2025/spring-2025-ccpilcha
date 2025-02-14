@@ -14,11 +14,9 @@ std::vector<CHUNK_DATA> Terrain::generateChunk(ChunkPos pos)
     CHUNK_DATA layer = CHUNK_DATA();
     for (int x = 0; x < CHUNK_X_SIZE; x++){
     for (int y = 0; y < CHUNK_Y_SIZE; y++){
-        layer[y][x] = 0;
+        layer[y][x] = 1;
     }
     }
-    layer[5][0] = 1;
-    layer[2][2] = 1;
     data.push_back(layer);
     return data;
 }
