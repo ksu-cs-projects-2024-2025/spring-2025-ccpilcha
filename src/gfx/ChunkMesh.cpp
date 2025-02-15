@@ -93,6 +93,7 @@ void ChunkMesh::UploadToGPU() {
 void ChunkMesh::Render()
 {
 	std::lock_guard<std::mutex> lock(*this->meshMutex);
+	
 	if (this->currentBuffer->empty()) 
 	{
 		return;

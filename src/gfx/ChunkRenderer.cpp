@@ -20,17 +20,13 @@ void ChunkRenderer::RenderChunkAt(ChunkPos pos)
 	}
 
 	Chunk *chunk = this->world->chunks[pos].get();
-
+	
 	if (!chunk->dirty) return;
 
 	std::vector<ChunkVertex> newVerts;
 
 	// then update
 	for (int z = 0; z < chunk->blocks.size(); z++) {
-		if (z == CHUNK_Z_SIZE - 1)
-		{
-			1;
-		}
 	for (int y = 0; y < CHUNK_Y_SIZE; y++) {
 	for (int x = 0; x < CHUNK_X_SIZE; x++) {
 		BLOCK_ID_TYPE blockId = chunk->blocks[z][y][x];
@@ -76,7 +72,7 @@ void ChunkRenderer::RenderChunks()
             pos = chunkRenderQueue.front();
             chunkRenderQueue.pop();
         }
-		
+
         this->RenderChunkAt(pos);
 
     }

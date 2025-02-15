@@ -20,6 +20,7 @@ public:
 
     Chunk();
     ~Chunk();
+    bool IsEmpty();
     void Init(GameContext* c);
     void Load(std::vector<CHUNK_DATA> data);
     BLOCK_ID_TYPE GetBlockId(int x, int y, int z);

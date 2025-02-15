@@ -15,6 +15,11 @@ void Chunk::Init(GameContext *c)
 
 }
 
+bool Chunk::IsEmpty()
+{
+    return blocks.empty();
+}
+
 void Chunk::Load(std::vector<CHUNK_DATA> data)
 {
     // TODO: mutex?
