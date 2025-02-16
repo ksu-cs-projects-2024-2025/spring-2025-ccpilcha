@@ -2,14 +2,11 @@
 
 #include <oneapi/tbb/concurrent_unordered_map.h>
 #include <oneapi/tbb/concurrent_queue.h>
-
 #include <SDL3/SDL.h>
-#include <unordered_map>
-#include <queue>
-
 #include <thread>
 
 #include "../game/GameContext.hpp"
+#include "../util/ThreadPool.hpp"
 #include "VertexAttribute.hpp"
 #include "ChunkPos.hpp"
 #include "ChunkMesh.hpp"
@@ -17,13 +14,11 @@
 #include "Shader.hpp"
 #include <shared_mutex>
 
-#include "../util/ThreadPool.hpp"
-
 class World;
 
 class ChunkRenderer
 {   
-    GLuint ssbo;
+    GLuint ubo;
     Shader chunkShader;
     ThreadPool threadPool;
     tbb::concurrent_unordered_map<ChunkPos, std::shared_ptr<ChunkMesh>> chunkMeshes;

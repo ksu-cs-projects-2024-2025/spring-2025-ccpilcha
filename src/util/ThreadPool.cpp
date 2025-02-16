@@ -1,11 +1,20 @@
 #include "ThreadPool.hpp"
 
+/**
+ * @brief Construct a new Thread Pool:: Thread Pool object
+ * 
+ * @param numThreads The number of threads to instantiate
+ */
 ThreadPool::ThreadPool(size_t numThreads) : stop(false) {
     for (size_t i = 0; i < numThreads; i++) {
         workers.emplace_back([this]() { workerThread(); });
     }
 }
 
+/**
+ * @brief Destroy the Thread Pool:: Thread Pool object
+ * 
+ */
 ThreadPool::~ThreadPool() {
     {
         std::unique_lock<std::mutex> lock(queueMutex);
@@ -17,6 +26,11 @@ ThreadPool::~ThreadPool() {
     }
 }
 
+/**
+ * @brief Enqueue a new task onto the thread pool
+ * 
+ * @param task Function to be called
+ */
 void ThreadPool::enqueueTask(std::function<void()> task) {
     {
         std::unique_lock<std::mutex> lock(queueMutex);
