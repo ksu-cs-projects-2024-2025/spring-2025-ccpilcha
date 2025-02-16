@@ -106,7 +106,7 @@ void ChunkRenderer::Init(GameContext *c)
 
     std::thread thr(&ChunkRenderer::RenderChunks, this);
     thr.detach();
-	
+
 }
 
 void ChunkRenderer::Update(GameContext *c, double deltaTime)

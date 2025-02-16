@@ -1,7 +1,8 @@
 #version 410 core
-layout (location = 0) in ivec3 aPos;
-layout (location = 1) in int aBlockID;
-layout (location = 2) in int aFace;
+layout (location = 0) in uint data;
+uvec3 aPos;
+uint aBlockID;
+uint aFace;
 
 out vec2 TexCoord;
 flat out int BlockID;
@@ -47,6 +48,11 @@ uniform vec3 chunkPos;
 
 void main()
 {
+    aPos.x = bitfieldExtract(data, 28, 4);
+    aPos.y = bitfieldExtract(data, 24, 4);
+    aPos.z = bitfieldExtract(data, 20, 4);
+    aFace = bitfieldExtract(data, 17, 3);
+    aBlockID = bitfieldExtract(data, 0, 17);
     // Calculate the vertex offset for this face and vertex
     vec3 offset = vertexOffsets[aFace* 6 + (gl_VertexID % 6)];
     vec2 texOffset = textureOffsets[aFace * 6 + (gl_VertexID % 6)];
@@ -59,11 +65,11 @@ void main()
         else if (aFace != 5) layer = 1;
         else layer = 0;
     } else {
-        layer = aBlockID;
+        layer = int(aBlockID);
     }
 
 	gl_Position = projection * view * model * vec4(worldPos, 1.0f);
 	TexCoord = texOffset;
-	BlockID = aBlockID;
-	Face = aFace;
+	BlockID = int(aBlockID);
+	Face = int(aFace);
 }

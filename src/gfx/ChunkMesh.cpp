@@ -6,9 +6,7 @@
 #include "GLHelper.hpp"
 
 std::vector<VertexAttribute> ChunkVertexAttribs = {
-	{3, GL_INT, GL_FALSE, sizeof(ChunkVertex), 0},
-	{1, GL_INT, GL_FALSE, sizeof(ChunkVertex), (void*)(3 * sizeof(int))},
-	{1, GL_INT, GL_FALSE, sizeof(ChunkVertex), (void*)(4 * sizeof(int))}
+	{1, GL_UNSIGNED_INT, GL_FALSE, sizeof(ChunkVertex), 0}
 };
 
 ChunkMesh::ChunkMesh() : 
