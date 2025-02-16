@@ -3,6 +3,7 @@
 #include <array>
 #include <vector>
 #include <glm/glm.hpp>
+#include <mutex>
 
 #include "ChunkPos.hpp"
 #include "GameContext.hpp"
@@ -12,6 +13,7 @@ class Chunk
 {
     // the idea here is that we can store the block IDs in a 3D array, but condense along the z-axis
     // if a chunk is empty (air) then this will be empty as well
+    std::unique_ptr<std::mutex> blockMutex;
 public:
     std::vector<CHUNK_DATA> blocks;
     ChunkPos pos;

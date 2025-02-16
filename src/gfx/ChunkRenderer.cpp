@@ -1,6 +1,7 @@
 #include "ChunkRenderer.hpp"
 #include "ChunkMesh.hpp"
 
+#include "Plane.hpp"
 #include "World.hpp"
 
 // Neighbor offsets as (x, y, z) tuples
@@ -15,12 +16,18 @@ constexpr int8_t nOffsets[6][3] = {
 
 void ChunkRenderer::RenderChunkAt(ChunkPos pos)
 {
-	if (!this->chunkMeshes.contains(pos)) {
+	if (this->chunkMeshes.contains(pos)) {
 		this->chunkMeshes.emplace(pos, std::make_shared<ChunkMesh>());
 	}
 
 	Chunk *chunk = this->world->chunks[pos].get();
-	
+
+	if (!this->world->ChunkLoaded(pos))
+	{
+		std::lock_guard<std::mutex> lock(queueRenderMutex);
+		chunkRenderQueue.push(pos);
+		return;
+	}
 	if (!chunk->dirty) return;
 
 	std::vector<ChunkVertex> newVerts;
@@ -36,7 +43,7 @@ void ChunkRenderer::RenderChunkAt(ChunkPos pos)
 			int ny = y + nOffsets[face][1];
 			int nz = z + nOffsets[face][2];
 
-			uint16_t neighborBlockId = this->world->GetBlockId(chunk->pos, nx, ny, nz);
+			uint16_t neighborBlockId = this->world->GetBlockId(pos, nx, ny, nz);
 			if (neighborBlockId <= 0) {
 				// Add the face to the mesh
 				std::vector<ChunkVertex> blockVerts = {
@@ -68,17 +75,24 @@ void ChunkRenderer::RenderChunks()
         {
             std::unique_lock<std::mutex> lock(queueRenderMutex);
             queueCV.wait(lock, [this] { return !chunkRenderQueue.empty(); });
-
-            pos = chunkRenderQueue.front();
-            chunkRenderQueue.pop();
         }
 
-        this->RenderChunkAt(pos);
+		if (!chunkRenderQueue.try_pop(pos)) continue;
 
+		if (this->world->ChunkReady(pos))
+		{
+			threadPool.enqueueTask([this, pos]() {
+				if (!chunkMeshes.contains(pos)) {
+					chunkMeshes[pos] = std::make_shared<ChunkMesh>();
+				}
+	
+				this->RenderChunkAt(pos);
+			});
+		}
     }
 }
 
-ChunkRenderer::ChunkRenderer(World *w) : world(w), chunkShader("assets/shaders/chunk.v.glsl", "assets/shaders/chunk.f.glsl"), chunkMeshes()
+ChunkRenderer::ChunkRenderer(World *w) : world(w), chunkShader("assets/shaders/chunk.v.glsl", "assets/shaders/chunk.f.glsl"), chunkMeshes(), threadPool(8)
 {
 
 }
@@ -92,6 +106,7 @@ void ChunkRenderer::Init(GameContext *c)
 
     std::thread thr(&ChunkRenderer::RenderChunks, this);
     thr.detach();
+	
 }
 
 void ChunkRenderer::Update(GameContext *c, double deltaTime)
@@ -110,6 +125,36 @@ void ChunkRenderer::Update(GameContext *c, double deltaTime)
 	}
 }
 
+// Check if an AABB is inside the frustum
+bool isChunkVisible(const std::array<Plane, 6>& frustum, const glm::vec3& minCorner, const glm::vec3& maxCorner) {
+    for (const auto& plane : frustum) {
+        int inCount = 0;
+        glm::vec3 corners[8] = {
+            {minCorner.x, minCorner.y, minCorner.z},
+            {maxCorner.x, minCorner.y, minCorner.z},
+            {minCorner.x, maxCorner.y, minCorner.z},
+            {maxCorner.x, maxCorner.y, minCorner.z},
+            {minCorner.x, minCorner.y, maxCorner.z},
+            {maxCorner.x, minCorner.y, maxCorner.z},
+            {minCorner.x, maxCorner.y, maxCorner.z},
+            {maxCorner.x, maxCorner.y, maxCorner.z},
+        };
+
+        // If all 8 points of the AABB are outside a single frustum plane, cull it
+        for (const auto& corner : corners) {
+            if (glm::dot(plane.normal, corner) + plane.d > 0) {
+                inCount++;
+            }
+        }
+
+        if (inCount == 0) {
+            return false;  // Fully outside the frustum
+        }
+    }
+    return true;  // At least partially inside the frustum
+}
+
+
 void ChunkRenderer::Render(GameContext *c)
 {
 	c->texture.use(GL_TEXTURE0);
@@ -120,12 +165,30 @@ void ChunkRenderer::Render(GameContext *c)
 	chunkShader.setMat4("view", c->plr->camera.view);
 	chunkShader.setFloat("opacity", 1.0f);
 	chunkShader.setVec3("hint", glm::vec3(1.0f, 1.0f, 1.0f));
-	
+
+	glm::vec3 camPos = glm::vec3(
+		-1 * c->plr->chunkPos.x * CHUNK_X_SIZE, 
+		-1 * c->plr->chunkPos.y * CHUNK_Y_SIZE, 
+		-1 * c->plr->chunkPos.z * CHUNK_Z_SIZE
+	);
+	glm::mat4 VP = c->plr->camera.proj * c->plr->camera.view;
+	std::array<Plane, 6> frustumPlanes = extractFrustumPlanes(VP);
+	chunkShader.setMat4("model", glm::translate(glm::mat4(1.0f), camPos));
+
 	for (auto &meshPair : chunkMeshes) {
-		chunkShader.setMat4("model", glm::translate(glm::mat4(1.0f), 
-			glm::vec3((meshPair.first.x - c->plr->chunkPos.x) * CHUNK_X_SIZE * 1.0f, 
-				(meshPair.first.y - c->plr->chunkPos.y) * CHUNK_Y_SIZE * 1.0f, 
-				(meshPair.first.z - c->plr->chunkPos.z) * CHUNK_Z_SIZE * 1.0f)));
-		meshPair.second->Render();
+		glm::vec3 chunkPos = glm::vec3(
+			meshPair.first.x * CHUNK_X_SIZE, 
+			meshPair.first.y * CHUNK_Y_SIZE, 
+			meshPair.first.z * CHUNK_Z_SIZE
+		);
+		glm::vec3 minCorner = chunkPos + camPos;
+		glm::vec3 maxCorner = minCorner + glm::vec3(CHUNK_X_SIZE, CHUNK_Y_SIZE, CHUNK_Z_SIZE);
+
+		if (isChunkVisible(frustumPlanes, minCorner, maxCorner)) {
+			chunkShader.setVec3("chunkPos", chunkPos);
+			meshPair.second->Render();
+		} else {
+			continue;
+		}
 	}
 }

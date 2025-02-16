@@ -43,14 +43,15 @@ const vec2 textureOffsets[36] = vec2[36](
 uniform mat4 model;
 uniform mat4 view;
 uniform mat4 projection;
+uniform vec3 chunkPos;
 
 void main()
 {
     // Calculate the vertex offset for this face and vertex
     vec3 offset = vertexOffsets[aFace* 6 + (gl_VertexID % 6)];
     vec2 texOffset = textureOffsets[aFace * 6 + (gl_VertexID % 6)];
-
-    vec3 worldPos = aPos + offset;
+    
+    vec3 worldPos = chunkPos + aPos + offset;
     
     if (aBlockID == 1)
     {

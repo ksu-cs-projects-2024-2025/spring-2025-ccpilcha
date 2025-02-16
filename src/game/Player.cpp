@@ -46,6 +46,7 @@ void Player::OnEvent(GameContext *c, SDL_Event *event)
         else if (key == c->right)       movement[3] = isPressed;
         else if (key == c->up)          movement[4] = isPressed;
         else if (key == c->down)        movement[5] = isPressed;
+        else if (key == c->sprint)      movement[6] = isPressed;
     }
 }
 
@@ -61,7 +62,7 @@ void Player::Update(GameContext *c, double deltaTime)
     if (movement[4]) move += camera.up;
     if (movement[5]) move -= camera.up;
     if (glm::length(move) > 0)
-        move = c->moveSpeed * deltaTime * glm::normalize(move); // we want constant moving velocity
+        move = (movement[6]*5 + 1) * c->moveSpeed * deltaTime * glm::normalize(move); // we want constant moving velocity
     this->pos += move;
     ChunkPos newPos = this->chunkPos + this->pos;
     if (newPos != this->chunkPos)

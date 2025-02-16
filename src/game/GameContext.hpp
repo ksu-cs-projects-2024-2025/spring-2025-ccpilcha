@@ -31,7 +31,7 @@ struct GameContext {
     uint64_t seed; // world seed
     int renderDistance; // radius in chunks
 
-    SDL_Keycode forward, backward, left, right, up, down;
+    SDL_Keycode forward, backward, left, right, up, down, sprint;
 
     enum GameState {
         GAME_STATE_MENU,
@@ -58,5 +58,6 @@ struct GameContext {
         right = SDLK_D;
         up = SDLK_SPACE;
         down = SDLK_LSHIFT;
+        sprint = SDLK_LCTRL;
     }
 };

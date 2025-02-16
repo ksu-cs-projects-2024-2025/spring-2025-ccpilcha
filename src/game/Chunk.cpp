@@ -1,7 +1,7 @@
 #include "Chunk.hpp"
 #include <math.h>
 
-Chunk::Chunk() : pos(), blocks()
+Chunk::Chunk() : pos(), blocks(), blockMutex(std::make_unique<std::mutex>())
 {
 }
 
@@ -22,18 +22,13 @@ bool Chunk::IsEmpty()
 
 void Chunk::Load(std::vector<CHUNK_DATA> data)
 {
-    // TODO: mutex?
-    this->blocks = data;
+    this->blocks.insert(this->blocks.end(), data.begin(), data.end());
     this->dirty = true;
     this->loaded = true;
 }
 
 BLOCK_ID_TYPE Chunk::GetBlockId(int x, int y, int z)
 {
-    if (this == NULL)
-    {
-        return 0;
-    }
     if (z + 1 > blocks.size()) return 0;
     BLOCK_ID_TYPE block = blocks[z][y][x];
     return block;

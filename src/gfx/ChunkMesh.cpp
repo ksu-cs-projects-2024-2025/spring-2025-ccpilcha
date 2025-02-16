@@ -20,6 +20,18 @@ ChunkMesh::ChunkMesh() :
 
 ChunkMesh::~ChunkMesh()
 {
+    std::lock_guard<std::mutex> lock(*meshMutex);
+
+    if (vbo) {
+        glDeleteBuffers(1, &vbo);
+    }
+    if (vao) {
+        glDeleteVertexArrays(1, &vao);
+    }
+    if (bufferSync) {
+        glDeleteSync(bufferSync);
+        bufferSync = nullptr;
+    }
 }
 
 void ChunkMesh::Load(std::vector<ChunkVertex> data) {
@@ -92,6 +104,10 @@ void ChunkMesh::UploadToGPU() {
  */
 void ChunkMesh::Render()
 {
+    if (this == nullptr)
+    {
+        return;
+    }
 	std::lock_guard<std::mutex> lock(*this->meshMutex);
 	
 	if (this->currentBuffer->empty()) 
