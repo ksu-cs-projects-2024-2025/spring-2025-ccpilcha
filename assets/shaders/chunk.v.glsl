@@ -48,11 +48,11 @@ uniform vec3 chunkPos;
 
 void main()
 {
-    aPos.x = bitfieldExtract(data, 28, 4);
-    aPos.y = bitfieldExtract(data, 24, 4);
-    aPos.z = bitfieldExtract(data, 20, 4);
-    aFace = bitfieldExtract(data, 17, 3);
-    aBlockID = bitfieldExtract(data, 0, 17);
+    aPos.x = bitfieldExtract(data, 27, 5);
+    aPos.y = bitfieldExtract(data, 22, 5);
+    aPos.z = bitfieldExtract(data, 17, 5);
+    aFace = bitfieldExtract(data, 14, 3);
+    aBlockID = bitfieldExtract(data, 0, 14);
     // Calculate the vertex offset for this face and vertex
     vec3 offset = vertexOffsets[aFace* 6 + (gl_VertexID % 6)];
     vec2 texOffset = textureOffsets[aFace * 6 + (gl_VertexID % 6)];

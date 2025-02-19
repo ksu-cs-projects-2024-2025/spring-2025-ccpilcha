@@ -1,7 +1,7 @@
 #include "Chunk.hpp"
 #include <math.h>
 
-Chunk::Chunk() : pos(), blocks(), blockMutex(std::make_unique<std::mutex>())
+Chunk::Chunk() : pos(), blocks()
 {
 }
 

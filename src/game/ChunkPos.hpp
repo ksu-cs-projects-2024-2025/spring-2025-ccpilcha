@@ -3,9 +3,9 @@
 #include <glm/glm.hpp>
 
 #define BLOCK_ID_TYPE uint8_t
-#define CHUNK_X_SIZE 16
-#define CHUNK_Y_SIZE 16
-#define CHUNK_Z_SIZE 16
+#define CHUNK_X_SIZE 32
+#define CHUNK_Y_SIZE 32
+#define CHUNK_Z_SIZE 32
 #define CHUNK_SIZE (CHUNK_X_SIZE * CHUNK_Y_SIZE * CHUNK_Z_SIZE)
 #define CHUNK_POS_X_TYPE int64_t
 #define CHUNK_POS_Y_TYPE int64_t
@@ -27,6 +27,17 @@ struct ChunkPos
     bool operator!=(const ChunkPos &other) const
     {
         return x != other.x || y != other.y || z != other.z;
+    }
+
+    double distanceXY(const ChunkPos &other) const
+    {
+        return sqrt((x - other.x) * (x - other.x) + (y - other.y) * (y - other.y));
+    }
+    
+
+    double distance(const ChunkPos &other) const
+    {
+        return sqrt((x - other.x) * (x - other.x) + (y - other.y) * (y - other.y) + (z - other.z) * (z - other.z));
     }
     
     /**

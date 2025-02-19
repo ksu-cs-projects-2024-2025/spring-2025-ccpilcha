@@ -12,7 +12,7 @@ struct ChunkVertex
     //	4	BOTTOM	-Z (Z = 0)
     //	5	TOP		+Z (Z = 1)
     
-    // [4 x] [4 y] [4 z] [3 face] [17 id]
+    // [5 x] [5 y] [5 z] [3 face] [14 id]
     uint32_t data;
 
     /**
@@ -26,11 +26,11 @@ struct ChunkVertex
      */
     ChunkVertex(int x, int y, int z, uint blockId, int faceNum)
     {
-        data = (x & 0xf) << 28 
-            | (y & 0xf) << 24 
-            | (z & 0xf) << 20 
-            | (faceNum & 0x7) << 17 
-            | (blockId & 0x1ffff);
+        data = (x & 0b11111) << 27 
+            | (y & 0b11111) << 22 
+            | (z & 0b11111) << 17 
+            | (faceNum & 0b111) << 14 
+            | (blockId & 0x3ff);
     }
 };
 

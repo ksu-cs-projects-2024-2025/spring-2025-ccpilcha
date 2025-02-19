@@ -73,6 +73,8 @@ void ChunkMesh::Update(GameContext *c)
 			vAttrib.enable(num++);
 		}
 	}
+    Swap();
+    UploadToGPU();
 }
 
 /**

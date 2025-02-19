@@ -16,15 +16,15 @@ constexpr int8_t nOffsets[6][3] = {
 
 void ChunkRenderer::RenderChunkAt(ChunkPos pos)
 {
-	if (this->chunkMeshes.contains(pos)) {
-		this->chunkMeshes.emplace(pos, std::make_shared<ChunkMesh>());
-	}
-
+	if (!this->world->AreAllNeighborsLoaded(pos)) {
+		chunkRenderQueue.push(pos);
+        return;
+    }
+	
 	Chunk *chunk = this->world->chunks[pos].get();
 
 	if (!this->world->ChunkLoaded(pos))
 	{
-		std::lock_guard<std::mutex> lock(queueRenderMutex);
 		chunkRenderQueue.push(pos);
 		return;
 	}
@@ -59,6 +59,10 @@ void ChunkRenderer::RenderChunkAt(ChunkPos pos)
 		}
 	}
 	}
+	}
+
+	if (this->chunkMeshes.contains(pos)) {
+		this->chunkMeshes.emplace(pos, std::make_shared<ChunkMesh>());
 	}
 
 	this->chunkMeshes[pos]->Load(newVerts);
@@ -120,8 +124,6 @@ void ChunkRenderer::Update(GameContext *c, double deltaTime)
 	for (auto &meshPair : chunkMeshes) {
 		chunkShader.use();
 		meshPair.second->Update(c);
-		meshPair.second->Swap();
-		meshPair.second->UploadToGPU();
 	}
 }
 
@@ -176,6 +178,9 @@ void ChunkRenderer::Render(GameContext *c)
 	chunkShader.setMat4("model", glm::translate(glm::mat4(1.0f), camPos));
 
 	for (auto &meshPair : chunkMeshes) {
+		if (c->plr->chunkPos.distanceXY(meshPair.first) > c->renderDistance) {
+			continue;
+		}
 		glm::vec3 chunkPos = glm::vec3(
 			meshPair.first.x * CHUNK_X_SIZE, 
 			meshPair.first.y * CHUNK_Y_SIZE, 

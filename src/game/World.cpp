@@ -2,6 +2,27 @@
 
 #include <thread>
 
+bool World::AreAllNeighborsLoaded(const ChunkPos &pos)
+{
+    // Define neighbor offsets (adjust if you need more than 6 directions)
+    const std::array<ChunkPos, 6> neighborOffsets = {{
+        ChunkPos{-1,  0,  0},
+        ChunkPos{ 1,  0,  0},
+        ChunkPos{ 0, -1,  0},
+        ChunkPos{ 0,  1,  0},
+        ChunkPos{ 0,  0, -1},
+        ChunkPos{ 0,  0,  1}
+    }};
+    
+    // Check each neighbor using atomic flag or safe retrieval of shared_ptr.
+    for (const auto &offset : neighborOffsets) {
+        ChunkPos neighborPos = pos + offset;
+        if (!ChunkLoaded(neighborPos)) {
+            return false;
+        }
+    }
+    return true;
+}
 
 // this will allow for checking air blocks, even in neighboring chunks
 BLOCK_ID_TYPE World::GetBlockId(const ChunkPos &pos, int x, int y, int z)
@@ -50,20 +71,22 @@ void World::LoadChunks()
 
         if (chunkLoadQueue.try_pop(pos))
         {
-            std::vector<CHUNK_DATA> data = this->terrain.generateChunk(pos);
-            this->chunks[pos]->Load(data);
-    
-            {
-                std::lock_guard<std::mutex> lock(renderer.queueRenderMutex);
-                renderer.chunkRenderQueue.push(pos);
-            }
-            renderer.queueCV.notify_one();  // Wake up the chunk loader thread
-            // we should then queue another thread responsible for loading chunk vertex data
+            threadPool.enqueueTask([this, pos]() {
+                std::vector<CHUNK_DATA> data = this->terrain.generateChunk(pos);
+                this->chunks[pos]->Load(data);
+        
+                {
+                    std::lock_guard<std::mutex> lock(renderer.queueRenderMutex);
+                    renderer.chunkRenderQueue.push(pos);
+                }
+                renderer.queueCV.notify_one();  // Wake up the chunk loader thread
+                // we should then queue another thread responsible for loading chunk vertex data
+            });
         }
     }
 }
 
-World::World() : terrain(), chunks(), renderer(this)
+World::World() : terrain(), chunks(), renderer(this), threadPool(8)
 {
 
 }
@@ -99,14 +122,13 @@ void World::Update(GameContext *c, double deltaTime)
     // this needs to work from the center outward
     ChunkPos pPos = c->plr->chunkPos;
     // check which chunks need to be loaded
-    std::unique_lock<std::mutex> qlock(queueLoadMutex);
     if (pPos != c->plr->lastPos)
     {
-        for (int dz = -2; dz < 2; dz++) {
-        for (int dy = -16; dy < 16; dy++) {
-        for (int dx = -16; dx < 16; dx++) {
+        for (int dz = -c->renderDistance; dz < c->renderDistance; dz++) {
+        for (int dy = -c->renderDistance; dy < c->renderDistance; dy++) {
+        for (int dx = -c->renderDistance; dx < c->renderDistance; dx++) {
             int x = pPos.x + dx, y = pPos.y + dy, z = pPos.z + dz;
-            if (dx*dx + dy*dy > 32*32) continue;
+            if (dx*dx + dy*dy > (c->renderDistance + 1)*(c->renderDistance+1)) continue;
             ChunkPos nPos({x,y,z});
             if (!ChunkReady(nPos)) {
                 this->chunks[nPos] = std::make_shared<Chunk>();
@@ -115,7 +137,6 @@ void World::Update(GameContext *c, double deltaTime)
             }
         }}}   
     }
-    qlock.unlock();
     queueCV.notify_one();  // Wake up the chunk loader thread
 
     // needs to be aware of the chunks which are queued for render
