@@ -17,7 +17,7 @@ class World {
     Terrain terrain;
     ThreadPool threadPool;
     void requestChunkLoad(ChunkPos pos);
-    void LoadChunks();
+    void LoadChunks(GameContext *c);
 public:
 
     // TODO: make this part of the GameContext?

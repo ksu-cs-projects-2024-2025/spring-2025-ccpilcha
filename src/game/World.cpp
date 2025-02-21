@@ -5,7 +5,7 @@
 bool World::AreAllNeighborsLoaded(const ChunkPos &pos)
 {
     // Define neighbor offsets (adjust if you need more than 6 directions)
-    const std::array<ChunkPos, 6> neighborOffsets = {{
+    constexpr std::array<ChunkPos, 6> neighborOffsets = {{
         ChunkPos{-1,  0,  0},
         ChunkPos{ 1,  0,  0},
         ChunkPos{ 0, -1,  0},
@@ -54,35 +54,43 @@ bool gameRunning = true;
  * This function will run on its own thread
  * 
  */
-void World::LoadChunks()
+void World::LoadChunks(GameContext *c)
 {
     // TODO: this thread needs to end when the game exits the playing state
     while (true)
     {
-        ChunkPos pos;
 
         {
             std::unique_lock<std::mutex> lock(queueLoadMutex);
-            queueCV.wait(lock, [this] { return !chunkLoadQueue.empty() || !gameRunning; });
+            queueCV.wait(lock, [this, c] { return c->plr->chunkPos != c->plr->lastPos || !gameRunning; });
 
             if (!gameRunning) return;  // Exit thread when game ends
 
         }
-
-        if (chunkLoadQueue.try_pop(pos))
-        {
-            threadPool.enqueueTask([this, pos]() {
-                std::vector<CHUNK_DATA> data = this->terrain.generateChunk(pos);
-                this->chunks[pos]->Load(data);
-        
-                {
-                    std::lock_guard<std::mutex> lock(renderer.queueRenderMutex);
-                    renderer.chunkRenderQueue.push(pos);
-                }
-                renderer.queueCV.notify_one();  // Wake up the chunk loader thread
-                // we should then queue another thread responsible for loading chunk vertex data
-            });
-        }
+        ChunkPos pPos = c->plr->chunkPos;
+        for (int r = -c->renderDistance+1; r < c->renderDistance+1; r++) {
+        for (int dz = -r; dz < r; dz++) {
+        for (int dy = -r; dy < r; dy++) {
+        for (int dx = -r; dx < r; dx++) {
+            int x = pPos.x + dx, y = pPos.y + dy, z = pPos.z + dz;
+            if (dx*dx + dy*dy > r*r) continue;
+            ChunkPos nPos({x,y,z});
+            if (!ChunkReady(nPos)) {
+                this->chunks[nPos] = std::make_shared<Chunk>();
+                this->chunks[nPos]->Init(c);
+                threadPool.enqueueTask([this, nPos]() {
+                    std::vector<CHUNK_DATA> data = this->terrain.generateChunk(nPos);
+                    this->chunks[nPos]->Load(data);
+            
+                    {
+                        std::lock_guard<std::mutex> lock(renderer.queueRenderMutex);
+                        renderer.chunkRenderQueue.push(nPos);
+                    }
+                    renderer.queueCV.notify_one();  // Wake up the chunk loader thread
+                    // we should then queue another thread responsible for loading chunk vertex data
+                });
+            }
+        }}}}
     }
 }
 
@@ -102,7 +110,7 @@ void World::Init(GameContext *c)
     renderer.Init(c);
     this->chunks.reserve(10000);
     // TODO: create thread which works on generating the world
-    std::thread thr(&World::LoadChunks, this);
+    std::thread thr(&World::LoadChunks, this, c);
     thr.detach();
 }
 
@@ -120,24 +128,11 @@ void World::Update(GameContext *c, double deltaTime)
 {
     // we need to loop through chunks in a radius around the camera.
     // this needs to work from the center outward
-    ChunkPos pPos = c->plr->chunkPos;
     // check which chunks need to be loaded
-    if (pPos != c->plr->lastPos)
+    if (c->plr->chunkPos != c->plr->lastPos)
     {
-        for (int dz = -c->renderDistance; dz < c->renderDistance; dz++) {
-        for (int dy = -c->renderDistance; dy < c->renderDistance; dy++) {
-        for (int dx = -c->renderDistance; dx < c->renderDistance; dx++) {
-            int x = pPos.x + dx, y = pPos.y + dy, z = pPos.z + dz;
-            if (dx*dx + dy*dy > (c->renderDistance + 1)*(c->renderDistance+1)) continue;
-            ChunkPos nPos({x,y,z});
-            if (!ChunkReady(nPos)) {
-                this->chunks[nPos] = std::make_shared<Chunk>();
-                this->chunks[nPos]->Init(c);
-                chunkLoadQueue.push(nPos);
-            }
-        }}}   
+        queueCV.notify_one();  // Wake up the chunk loader thread
     }
-    queueCV.notify_one();  // Wake up the chunk loader thread
 
     // needs to be aware of the chunks which are queued for render
     renderer.Update(c, deltaTime);

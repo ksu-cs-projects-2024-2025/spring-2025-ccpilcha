@@ -61,7 +61,7 @@ void ChunkRenderer::RenderChunkAt(ChunkPos pos)
 	}
 	}
 
-	if (this->chunkMeshes.contains(pos)) {
+	if (!this->chunkMeshes.contains(pos)) {
 		this->chunkMeshes.emplace(pos, std::make_shared<ChunkMesh>());
 	}
 
@@ -110,6 +110,7 @@ void ChunkRenderer::Init(GameContext *c)
 
     std::thread thr(&ChunkRenderer::RenderChunks, this);
     thr.detach();
+	chunkMeshes.reserve(10000);
 
 }
 
