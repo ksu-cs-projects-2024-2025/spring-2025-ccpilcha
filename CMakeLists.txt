@@ -12,7 +12,7 @@ find_package(Python3 COMPONENTS Interpreter REQUIRED)
 
 # Set optimization level based on build type
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0")
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O1")
 elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
 endif()
@@ -87,6 +87,14 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(SDL3_ttf)
 
+# Lib TBB (for concurrent hash maps)
+FetchContent_Declare(
+  tbb
+  GIT_REPOSITORY https://github.com/oneapi-src/oneTBB.git
+  GIT_TAG v2021.9.0
+)
+FetchContent_MakeAvailable(tbb)
+
 
 add_library(SDL3 INTERFACE)
 target_include_directories(SDL3 INTERFACE ${SDL3_SOURCE_DIR}/include)
@@ -131,8 +139,9 @@ target_include_directories(glad PUBLIC ${glad_SOURCE_DIR}/src/include)
 add_executable(${EXECUTABLE_NAME})
 
 # Link everything to your project
-target_link_libraries(${EXECUTABLE_NAME} glm glad SDL3_image SDL3_mixer SDL3_ttf SDL3)
+target_link_libraries(${EXECUTABLE_NAME} glm glad SDL3_image SDL3_mixer SDL3_ttf SDL3 tbb)
 target_include_directories(${EXECUTABLE_NAME} PRIVATE ${glad_SOURCE_DIR}/src/include)
+target_include_directories(${EXECUTABLE_NAME} PRIVATE ${tbb_SOURCE_DIR}/src/include)
 
 add_custom_target(assets
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_LIST_DIR}/assets ${CMAKE_BINARY_DIR}/assets

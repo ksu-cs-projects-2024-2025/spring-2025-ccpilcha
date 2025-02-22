@@ -6,9 +6,7 @@
 #include "GLHelper.hpp"
 
 std::vector<VertexAttribute> ChunkVertexAttribs = {
-	{3, GL_INT, GL_FALSE, sizeof(ChunkVertex), 0},
-	{1, GL_INT, GL_FALSE, sizeof(ChunkVertex), (void*)(3 * sizeof(int))},
-	{1, GL_INT, GL_FALSE, sizeof(ChunkVertex), (void*)(4 * sizeof(int))}
+	{1, GL_UNSIGNED_INT, GL_FALSE, sizeof(ChunkVertex), 0}
 };
 
 ChunkMesh::ChunkMesh() : 
@@ -20,18 +18,28 @@ ChunkMesh::ChunkMesh() :
 
 ChunkMesh::~ChunkMesh()
 {
+    std::lock_guard<std::mutex> lock(*meshMutex);
+
+    if (vbo) {
+        glDeleteBuffers(1, &vbo);
+    }
+    if (vao) {
+        glDeleteVertexArrays(1, &vao);
+    }
+    if (bufferSync) {
+        glDeleteSync(bufferSync);
+        bufferSync = nullptr;
+    }
 }
 
 void ChunkMesh::Load(std::vector<ChunkVertex> data) {
     std::lock_guard<std::mutex> lock(*meshMutex);
-	(*meshSwapping).store(true);
     if (bufferAFlag) {
         bufferA = std::move(data);
-        currentBuffer = &bufferA;
     } else {
         bufferB = std::move(data);
-        currentBuffer = &bufferB;
     }
+	(*meshSwapping).store(true);
 }
 
 /**
@@ -65,6 +73,8 @@ void ChunkMesh::Update(GameContext *c)
 			vAttrib.enable(num++);
 		}
 	}
+    Swap();
+    UploadToGPU();
 }
 
 /**
@@ -77,11 +87,10 @@ void ChunkMesh::UploadToGPU() {
 
     std::lock_guard<std::mutex> lock(*meshMutex);
 
-    if (!init) {
-        glGenBuffers(1, &vbo);
-		glCall(glGenVertexArrays(1, &this->vao));
-        init = true;
+    if (bufferSync) {
+        glDeleteSync(bufferSync);
     }
+    bufferSync = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
 
 	glCall(glBindBuffer(GL_ARRAY_BUFFER, this->vbo));
 	glCall(glBindVertexArray(this->vao));
@@ -95,9 +104,19 @@ void ChunkMesh::UploadToGPU() {
  */
 void ChunkMesh::Render()
 {
-	if ((*meshSwapping).load() || this->currentBuffer->empty()) return;
-
 	std::lock_guard<std::mutex> lock(*this->meshMutex);
+	
+	if (this->currentBuffer->empty()) 
+	{
+		return;
+	}
+
+    if (bufferSync) {
+        GLenum waitReturn = glClientWaitSync(bufferSync, GL_SYNC_FLUSH_COMMANDS_BIT, 1000000000);
+        if (waitReturn == GL_TIMEOUT_EXPIRED) {
+            return;
+        }
+    }
 
 	glCall(glBindBuffer(GL_ARRAY_BUFFER, this->vbo));
 	glCall(glBindVertexArray(this->vao));

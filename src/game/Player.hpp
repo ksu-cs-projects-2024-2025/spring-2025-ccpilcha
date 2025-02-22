@@ -9,7 +9,7 @@
 
 class Player
 {
-    bool movement[6];
+    bool movement[7];
 public:
     ChunkPos chunkPos, lastPos;
     glm::dvec3 pos;

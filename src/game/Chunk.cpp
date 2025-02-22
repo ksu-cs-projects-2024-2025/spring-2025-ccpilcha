@@ -7,6 +7,7 @@ Chunk::Chunk() : pos(), blocks()
 
 Chunk::~Chunk()
 {
+    1;
 }
 
 void Chunk::Init(GameContext *c)
@@ -14,10 +15,14 @@ void Chunk::Init(GameContext *c)
 
 }
 
+bool Chunk::IsEmpty()
+{
+    return blocks.empty();
+}
+
 void Chunk::Load(std::vector<CHUNK_DATA> data)
 {
-    // TODO: mutex?
-    this->blocks = data;
+    this->blocks.insert(this->blocks.end(), data.begin(), data.end());
     this->dirty = true;
     this->loaded = true;
 }
