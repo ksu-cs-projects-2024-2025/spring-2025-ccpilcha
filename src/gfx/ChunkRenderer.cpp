@@ -27,6 +27,10 @@ void ChunkRenderer::RenderChunkAt(ChunkPos pos)
 
 	// then update
 	for (int z = 0; z < chunk->blocks.size(); z++) {
+		if (z == CHUNK_Z_SIZE - 1)
+		{
+			1;
+		}
 	for (int y = 0; y < CHUNK_Y_SIZE; y++) {
 	for (int x = 0; x < CHUNK_X_SIZE; x++) {
 		BLOCK_ID_TYPE blockId = chunk->blocks[z][y][x];
@@ -118,13 +122,14 @@ void ChunkRenderer::Render(GameContext *c)
 	chunkShader.setInt("textureAtlas", 0);
 	chunkShader.setMat4("projection", c->plr->camera.proj);
 	chunkShader.setMat4("view", c->plr->camera.view);
-	chunkShader.setMat4("model", glm::translate(glm::mat4(1.0f), 
-		glm::vec3(c->plr->chunkPos.x * CHUNK_X_SIZE * -1.0f, 
-			c->plr->chunkPos.y * CHUNK_Y_SIZE * -1.0f, 
-			c->plr->chunkPos.z * CHUNK_Z_SIZE * -1.0f)));
 	chunkShader.setFloat("opacity", 1.0f);
 	chunkShader.setVec3("hint", glm::vec3(1.0f, 1.0f, 1.0f));
+	
 	for (auto &meshPair : chunkMeshes) {
+		chunkShader.setMat4("model", glm::translate(glm::mat4(1.0f), 
+			glm::vec3((meshPair.first.x - c->plr->chunkPos.x) * CHUNK_X_SIZE * 1.0f, 
+				(meshPair.first.y - c->plr->chunkPos.y) * CHUNK_Y_SIZE * 1.0f, 
+				(meshPair.first.z - c->plr->chunkPos.z) * CHUNK_Z_SIZE * 1.0f)));
 		meshPair.second->Render();
 	}
 }
