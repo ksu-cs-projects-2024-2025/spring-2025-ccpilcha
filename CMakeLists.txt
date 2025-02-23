@@ -125,15 +125,15 @@ execute_process(
 
 # Run GLAD Generator using the correct Python3 version
 add_custom_command(
-    OUTPUT ${CMAKE_BINARY_DIR}/glad/src/glad.c ${CMAKE_BINARY_DIR}/glad/include/glad/gl.h
+    OUTPUT ${CMAKE_BINARY_DIR}/glad/src/glad.c ${CMAKE_BINARY_DIR}/glad/include/glad/glad.h
     COMMAND ${PYTHON_PATH} -m glad
         --out-path ${GLAD_OUT_PATH}
-        --api gl:core=4.6 c
+        --api gl:compatability=4.1 c
     WORKING_DIRECTORY ${glad_SOURCE_DIR}
 )
 
 # Ensure the generated files are included
-add_library(glad STATIC ${glad_SOURCE_DIR}/src/src/gl.c)
+add_library(glad STATIC ${glad_SOURCE_DIR}/src/src/glad.c)
 target_include_directories(glad PUBLIC ${glad_SOURCE_DIR}/src/include)
 
 add_executable(${EXECUTABLE_NAME})

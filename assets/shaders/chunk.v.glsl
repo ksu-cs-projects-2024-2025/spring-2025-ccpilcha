@@ -8,43 +8,33 @@ out vec2 TexCoord;
 flat out int BlockID;
 flat out int Face;
 flat out int layer;
-
-// Predefined vertex offsets for all faces
-const vec3 vertexOffsets[36] = vec3[36](
+// Corrected vertex order for triangle strip
+const vec3 vertexOffsets[24] = vec3[24](
     // -x face
-    vec3(0, 1, 1), vec3(0, 1, 0), vec3(0, 0, 0), vec3(0, 0, 0), vec3(0, 0, 1), vec3(0, 1, 1),
+    vec3(0, 1, 1), vec3(0, 1, 0), vec3(0, 0, 1), vec3(0, 0, 0),
     // +x face
-    vec3(1, 0, 0), vec3(1, 1, 0), vec3(1, 1, 1), vec3(1, 1, 1), vec3(1, 0, 1), vec3(1, 0, 0),
-    // -y face
-    vec3(0, 0, 0), vec3(1, 0, 0), vec3(1, 0, 1), vec3(1, 0, 1), vec3(0, 0, 1), vec3(0, 0, 0),
-    // +y face
-    vec3(1, 1, 1), vec3(1, 1, 0), vec3(0, 1, 0), vec3(0, 1, 0), vec3(0, 1, 1), vec3(1, 1, 1),
+    vec3(1, 0, 0), vec3(1, 1, 0), vec3(1, 0, 1), vec3(1, 1, 1),
+    // -y face (Bottom)
+    vec3(0, 0, 0), vec3(1, 0, 0), vec3(0, 0, 1), vec3(1, 0, 1),
+    // +y face (Top)
+    vec3(0, 1, 0), vec3(0, 1, 1), vec3(1, 1, 0), vec3(1, 1, 1),
     // -z face
-    vec3(1, 1, 0), vec3(1, 0, 0), vec3(0, 0, 0), vec3(0, 0, 0), vec3(0, 1, 0), vec3(1, 1, 0),
+    vec3(1, 1, 0), vec3(1, 0, 0), vec3(0, 1, 0), vec3(0, 0, 0),
     // +z face
-    vec3(0, 0, 1), vec3(1, 0, 1), vec3(1, 1, 1), vec3(1, 1, 1), vec3(0, 1, 1), vec3(0, 0, 1)
+    vec3(0, 0, 1), vec3(1, 0, 1), vec3(0, 1, 1), vec3(1, 1, 1)
 );
 
-// Predefined texture coordinates for each vertex
-const vec2 textureOffsets[36] = vec2[36](
+// Corrected texture coordinates
+const vec2 textureOffsets[4] = vec2[4](
     // -x face
-    vec2(1, 0), vec2(1, 1), vec2(0, 1), vec2(0, 1), vec2(0, 0), vec2(1, 0),
-    // +x face
-    vec2(1, 1), vec2(0, 1), vec2(0, 0), vec2(0, 0), vec2(1, 0), vec2(1, 1),
-    // -y face
-    vec2(0, 1), vec2(1, 1), vec2(1, 0), vec2(1, 0), vec2(0, 0), vec2(0, 1),
-    // +y face
-    vec2(0, 0), vec2(0, 1), vec2(1, 1), vec2(1, 1), vec2(1, 0), vec2(0, 0),
-    // -z face
-    vec2(0, 0), vec2(0, 1), vec2(1, 1), vec2(1, 1), vec2(1, 0), vec2(0, 0),
-    // +z face
-    vec2(1, 1), vec2(0, 1), vec2(0, 0), vec2(0, 0), vec2(1, 0), vec2(1, 1)
+    vec2(0, 1), vec2(1, 1), vec2(0, 0), vec2(1, 0)
 );
 
 uniform mat4 model;
 uniform mat4 view;
 uniform mat4 projection;
 uniform vec3 chunkPos;
+uniform int LOD;
 
 void main()
 {
@@ -54,16 +44,15 @@ void main()
     aFace = bitfieldExtract(data, 14, 3);
     aBlockID = bitfieldExtract(data, 0, 14);
     // Calculate the vertex offset for this face and vertex
-    vec3 offset = vertexOffsets[aFace* 6 + (gl_VertexID % 6)];
-    vec2 texOffset = textureOffsets[aFace * 6 + (gl_VertexID % 6)];
+    vec3 offset = vertexOffsets[aFace* 4 + gl_VertexID];
+    vec2 texOffset = textureOffsets[gl_VertexID];
     
     vec3 worldPos = chunkPos + aPos + offset;
     
     if (aBlockID == 1)
     {
-        if (aFace == 4) layer = 2;
-        else if (aFace != 5) layer = 1;
-        else layer = 0;
+        if (aFace != 4) layer = 0;
+        else layer = 2;
     } else {
         layer = int(aBlockID);
     }

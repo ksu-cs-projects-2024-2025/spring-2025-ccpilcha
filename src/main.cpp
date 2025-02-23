@@ -3,7 +3,7 @@
 #define SDL_MAIN_USE_CALLBACKS 1
 #define G_DEBUG
 #include <iostream>
-#include <glad/gl.h>
+#include <glad/glad.h>
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 #include <SDL3/SDL_gpu.h>
@@ -96,7 +96,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
     }
 
     // Check to make sure GLAD was able to locate system GL functions
-    if (!gladLoadGL((GLADloadfunc)SDL_GL_GetProcAddress))
+    if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress))
     {
         std::cout << "GLAD was not initialized"
             << std::endl;
@@ -157,6 +157,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     frameCount++;
     // About every 250ms, I'd like to refresh the console on the FPS
     if (accTime >= 0.25) {
+        SDL_SetWindowTitle(window, (appname + std::string(" - FPS: ") + std::to_string((double) frameCount/accTime)).c_str());
         fprintf(stdout, "\rFPS: %.6f", (double) frameCount/accTime);
         accTime = 0.0;
         frameCount = 0;

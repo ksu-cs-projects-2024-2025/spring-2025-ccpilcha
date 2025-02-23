@@ -1,5 +1,5 @@
 #include "TextureArray.hpp"
-#include <glad/gl.h>
+#include <glad/glad.h>
 #include "../util/GLHelper.hpp"
 #include <SDL3_image/SDL_image.h>
 #include <vector>

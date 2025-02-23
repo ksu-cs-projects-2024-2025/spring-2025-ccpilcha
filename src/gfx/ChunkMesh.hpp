@@ -1,6 +1,6 @@
 #pragma once
 
-#include <glad/gl.h>
+#include <glad/glad.h>
 #include <oneapi/tbb/concurrent_vector.h>
 #include <thread>
 #include <mutex>

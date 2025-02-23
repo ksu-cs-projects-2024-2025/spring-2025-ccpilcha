@@ -1,6 +1,6 @@
 #pragma once
 
-#include <glad/gl.h>
+#include <glad/glad.h>
 #include "../util/GLHelper.hpp"
 
 struct VertexAttribute {
@@ -9,6 +9,7 @@ struct VertexAttribute {
     GLboolean normalized;
     GLsizei stride;
     const void* pointer;
+    int divisor;
 
     void enable(int index)
     {
@@ -20,5 +21,6 @@ struct VertexAttribute {
             glCall(glVertexAttribPointer(index, size, type, normalized, stride, pointer));
         }
         glCall(glEnableVertexAttribArray(index));
+        glCall(glVertexAttribDivisor(index, divisor));
     }
 };

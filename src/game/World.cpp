@@ -81,13 +81,12 @@ void World::LoadChunks(GameContext *c)
                 threadPool.enqueueTask([this, nPos]() {
                     std::vector<CHUNK_DATA> data = this->terrain.generateChunk(nPos);
                     this->chunks[nPos]->Load(data);
-            
+                    if (!this->chunks[nPos]->IsEmpty())
                     {
-                        std::lock_guard<std::mutex> lock(renderer.queueRenderMutex);
                         renderer.chunkRenderQueue.push(nPos);
+                        renderer.queueCV.notify_one();
+                        // we should then queue another thread responsible for loading chunk vertex data
                     }
-                    renderer.queueCV.notify_one();  // Wake up the chunk loader thread
-                    // we should then queue another thread responsible for loading chunk vertex data
                 });
             }
         }}}}
@@ -131,6 +130,7 @@ void World::Update(GameContext *c, double deltaTime)
     // check which chunks need to be loaded
     if (c->plr->chunkPos != c->plr->lastPos)
     {
+        
         queueCV.notify_one();  // Wake up the chunk loader thread
     }
 

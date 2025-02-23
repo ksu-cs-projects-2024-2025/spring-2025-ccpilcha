@@ -1,13 +1,15 @@
-#include <glad/gl.h>
+#include <glad/glad.h>
 #include <iostream>
+#include <vector>
 
 #include "ChunkMesh.hpp"
 #include "World.hpp"
 #include "GLHelper.hpp"
 
 std::vector<VertexAttribute> ChunkVertexAttribs = {
-	{1, GL_UNSIGNED_INT, GL_FALSE, sizeof(ChunkVertex), 0}
+	{1, GL_UNSIGNED_INT, GL_FALSE, sizeof(ChunkVertex), 0, 1}
 };
+
 
 ChunkMesh::ChunkMesh() : 
 	meshMutex(std::make_unique<std::mutex>()),
@@ -118,7 +120,6 @@ void ChunkMesh::Render()
         }
     }
 
-	glCall(glBindBuffer(GL_ARRAY_BUFFER, this->vbo));
 	glCall(glBindVertexArray(this->vao));
-	glCall(glDrawArrays(GL_TRIANGLES, 0, this->currentBuffer->size()));
+	glCall(glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, this->currentBuffer->size()));
 }

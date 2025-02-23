@@ -48,11 +48,6 @@ void ChunkRenderer::RenderChunkAt(ChunkPos pos)
 				// Add the face to the mesh
 				std::vector<ChunkVertex> blockVerts = {
 					{ x, y, z, blockId, face },
-					{ x, y, z, blockId, face },
-					{ x, y, z, blockId, face },
-					{ x, y, z, blockId, face },
-					{ x, y, z, blockId, face },
-					{ x, y, z, blockId, face },
 				};
 				newVerts.insert(newVerts.end(), blockVerts.begin(), blockVerts.end());
 			}
@@ -87,9 +82,8 @@ void ChunkRenderer::RenderChunks()
 		{
 			threadPool.enqueueTask([this, pos]() {
 				if (!chunkMeshes.contains(pos)) {
-					chunkMeshes[pos] = std::make_shared<ChunkMesh>();
+					this->chunkMeshes.emplace(pos, std::make_shared<ChunkMesh>());
 				}
-	
 				this->RenderChunkAt(pos);
 			});
 		}
@@ -182,6 +176,8 @@ void ChunkRenderer::Render(GameContext *c)
 		if (c->plr->chunkPos.distanceXY(meshPair.first) > c->renderDistance) {
 			continue;
 		}
+		chunkShader.setInt("LOD", 2);
+		
 		glm::vec3 chunkPos = glm::vec3(
 			meshPair.first.x * CHUNK_X_SIZE, 
 			meshPair.first.y * CHUNK_Y_SIZE, 

@@ -50,7 +50,7 @@ struct GameContext {
 
         moveSpeed = 20.f;
 
-        renderDistance = 8;
+        renderDistance = 16;
 
         forward = SDLK_W;
         backward = SDLK_S;
