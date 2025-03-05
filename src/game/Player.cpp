@@ -2,6 +2,7 @@
 #include "Chunk.hpp"
 
 #include <iostream>
+#include "World.hpp"
 
 Player::Player() : camera(), chunkPos({0,0,2}), lastPos({-1,-1,-1}), pos(0,0,0)
 {
@@ -63,6 +64,7 @@ void Player::Update(GameContext *c, double deltaTime)
     if (movement[5]) move -= camera.up;
     if (glm::length(move) > 0)
         move = (movement[6]*5 + 1) * c->moveSpeed * deltaTime * glm::normalize(move); // we want constant moving velocity
+
     this->pos += move;
     ChunkPos newPos = this->chunkPos + this->pos;
     if (newPos != this->chunkPos)

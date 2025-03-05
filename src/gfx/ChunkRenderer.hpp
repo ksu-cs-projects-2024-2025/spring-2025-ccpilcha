@@ -7,6 +7,7 @@
 
 #include "../game/GameContext.hpp"
 #include "../util/ThreadPool.hpp"
+#include "Mesh.hpp"
 #include "VertexAttribute.hpp"
 #include "ChunkPos.hpp"
 #include "ChunkMesh.hpp"
@@ -19,7 +20,8 @@ class World;
 class ChunkRenderer
 {   
     GLuint ubo;
-    Shader chunkShader;
+    Shader chunkShader, gizmoShader;
+    Mesh gizmoMesh;
     ThreadPool threadPool;
     tbb::concurrent_unordered_map<ChunkPos, std::shared_ptr<ChunkMesh>> chunkMeshes;
     World* world;

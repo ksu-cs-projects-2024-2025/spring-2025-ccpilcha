@@ -19,8 +19,9 @@ public:
     ChunkPos pos;
     bool dirty = true;
     bool loaded;
+    uint16_t visible;
 
-    Chunk();
+    Chunk(ChunkPos pos);
     ~Chunk();
     bool IsEmpty();
     void Init(GameContext* c);

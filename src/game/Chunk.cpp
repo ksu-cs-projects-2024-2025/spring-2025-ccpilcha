@@ -1,7 +1,7 @@
 #include "Chunk.hpp"
 #include <math.h>
 
-Chunk::Chunk() : pos(), blocks()
+Chunk::Chunk(ChunkPos pos) : pos(pos), blocks()
 {
 }
 

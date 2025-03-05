@@ -68,7 +68,7 @@ void World::LoadChunks(GameContext *c)
 
         }
         ChunkPos pPos = c->plr->chunkPos;
-        for (int r = -c->renderDistance+1; r < c->renderDistance+1; r++) {
+        for (int r = -c->renderDistance*sqrt(3)+1; r < c->renderDistance*sqrt(3)+1; r++) {
         for (int dz = -r; dz < r; dz++) {
         for (int dy = -r; dy < r; dy++) {
         for (int dx = -r; dx < r; dx++) {
@@ -76,11 +76,13 @@ void World::LoadChunks(GameContext *c)
             if (dx*dx + dy*dy > r*r) continue;
             ChunkPos nPos({x,y,z});
             if (!ChunkReady(nPos)) {
-                this->chunks[nPos] = std::make_shared<Chunk>();
+                this->chunks.emplace(nPos, std::make_shared<Chunk>(nPos));
                 this->chunks[nPos]->Init(c);
                 threadPool.enqueueTask([this, nPos]() {
+                    this->chunks[nPos]->visible = this->terrain.getVisibilityFlags(nPos);
                     std::vector<CHUNK_DATA> data = this->terrain.generateChunk(nPos);
                     this->chunks[nPos]->Load(data);
+                    if (this->chunks[nPos]->visible == 0) return;
                     if (!this->chunks[nPos]->IsEmpty())
                     {
                         renderer.chunkRenderQueue.push(nPos);

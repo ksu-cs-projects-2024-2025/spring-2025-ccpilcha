@@ -7,6 +7,7 @@ GameEngine::GameEngine(GameContext *c) : context(c), plr()
 {
     world = new World();
     context->plr = &plr;
+    context->world = world;
 }
 
 GameEngine::~GameEngine()

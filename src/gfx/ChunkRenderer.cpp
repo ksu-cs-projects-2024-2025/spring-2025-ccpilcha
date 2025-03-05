@@ -1,3 +1,6 @@
+
+#include <glm/glm.hpp>
+
 #include "ChunkRenderer.hpp"
 #include "ChunkMesh.hpp"
 
@@ -90,7 +93,12 @@ void ChunkRenderer::RenderChunks()
     }
 }
 
-ChunkRenderer::ChunkRenderer(World *w) : world(w), chunkShader("assets/shaders/chunk.v.glsl", "assets/shaders/chunk.f.glsl"), chunkMeshes(), threadPool(8)
+ChunkRenderer::ChunkRenderer(World *w) : 
+	world(w), 
+	chunkShader("assets/shaders/chunk.v.glsl", "assets/shaders/chunk.f.glsl"), 
+	gizmoShader("assets/shaders/gizmo.v.glsl", "assets/shaders/gizmo.f.glsl"), 
+	chunkMeshes(), 
+	threadPool(8)
 {
 
 }
@@ -154,6 +162,7 @@ bool isChunkVisible(const std::array<Plane, 6>& frustum, const glm::vec3& minCor
 
 void ChunkRenderer::Render(GameContext *c)
 {
+	glEnable(GL_DEPTH_TEST);
 	c->texture.use(GL_TEXTURE0);
 	
 	chunkShader.use(); // we are using the same shader each time
@@ -193,4 +202,13 @@ void ChunkRenderer::Render(GameContext *c)
 			continue;
 		}
 	}
+
+	glDisable(GL_DEPTH_TEST);
+	gizmoShader.use();
+	gizmoShader.setMat4("projection", c->plr->camera.proj);
+	gizmoShader.setMat4("view", glm::lookAt(-10.0f * c->plr->camera.forward, glm::vec3(0.f), c->plr->camera.up));
+	// Set a fixed position for the gizmo on screen:
+	gizmoShader.setMat4("model", glm::mat4(1.0f));
+
+	gizmoMesh.RenderInstanceAuto(GL_LINES, 2, 3);
 }
