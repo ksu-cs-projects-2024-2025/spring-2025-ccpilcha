@@ -25,7 +25,7 @@ void Player::Init(GameContext *c, ChunkPos pos)
     camera.viewport(c->aspectRatio, c->fov);
 }
 
-void Player::OnEvent(GameContext *c, SDL_Event *event)
+void Player::OnEvent(GameContext *c, const SDL_Event *event)
 {
     if (event->type == SDL_EVENT_WINDOW_RESIZED)
     {

@@ -8,6 +8,7 @@ out vec2 TexCoord;
 flat out int BlockID;
 flat out int Face;
 flat out int layer;
+
 // Corrected vertex order for triangle strip
 const vec3 vertexOffsets[24] = vec3[24](
     // -x face

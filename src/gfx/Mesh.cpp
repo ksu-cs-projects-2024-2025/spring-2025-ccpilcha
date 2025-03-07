@@ -1,5 +1,7 @@
 #include "Mesh.hpp"
 
+#include "Shader.hpp"
+
 Mesh::Mesh()
 {
     glCall(glGenVertexArrays(1, &this->vao));

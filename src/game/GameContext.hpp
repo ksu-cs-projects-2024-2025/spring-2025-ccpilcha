@@ -26,6 +26,7 @@ struct GameContext {
     float yawSensitivity;
     float pitchSensitivity;
     float moveSpeed;
+    float maxBlockDistance;
     TextureArray texture;
 
     uint64_t seed; // world seed
@@ -51,6 +52,7 @@ struct GameContext {
         moveSpeed = 20.f;
 
         renderDistance = 16;
+        maxBlockDistance = 10.0f;
 
         forward = SDLK_W;
         backward = SDLK_S;

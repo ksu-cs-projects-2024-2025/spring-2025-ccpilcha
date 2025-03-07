@@ -20,8 +20,7 @@ class World;
 class ChunkRenderer
 {   
     GLuint ubo;
-    Shader chunkShader, gizmoShader;
-    Mesh gizmoMesh;
+    Shader chunkShader;
     ThreadPool threadPool;
     tbb::concurrent_unordered_map<ChunkPos, std::shared_ptr<ChunkMesh>> chunkMeshes;
     World* world;
@@ -29,7 +28,7 @@ class ChunkRenderer
     void RenderChunks();
 
 public:
-    tbb::concurrent_queue<ChunkPos> chunkRenderQueue;
+    tbb::concurrent_queue<ChunkPos> chunkRenderQueue, chunkRemoveQueue;
     std::mutex queueRenderMutex;
     std::condition_variable queueCV;
     ChunkRenderer(World*);

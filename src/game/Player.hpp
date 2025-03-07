@@ -17,7 +17,7 @@ public:
     Player();
     ~Player();
     void Init(GameContext *c, ChunkPos pos);
-    void OnEvent(GameContext *c, SDL_Event *event);
+    void OnEvent(GameContext *c, const SDL_Event *event);
     void Update(GameContext *c, double deltaTime);
     void Render(GameContext *c);
 };

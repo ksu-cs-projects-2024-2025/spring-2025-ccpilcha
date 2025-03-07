@@ -7,7 +7,7 @@ Chunk::Chunk(ChunkPos pos) : pos(pos), blocks()
 
 Chunk::~Chunk()
 {
-    1;
+    blocks.clear();
 }
 
 void Chunk::Init(GameContext *c)
@@ -22,9 +22,14 @@ bool Chunk::IsEmpty()
 
 void Chunk::Load(std::vector<CHUNK_DATA> data)
 {
-    this->blocks.insert(this->blocks.end(), data.begin(), data.end());
+    this->blocks.swap(data);
     this->dirty = true;
     this->loaded = true;
+}
+
+int Chunk::size()
+{
+    return blocks.size();
 }
 
 BLOCK_ID_TYPE Chunk::GetBlockId(int x, int y, int z)
@@ -32,6 +37,15 @@ BLOCK_ID_TYPE Chunk::GetBlockId(int x, int y, int z)
     if (z + 1 > blocks.size()) return 0;
     BLOCK_ID_TYPE block = blocks[z][y][x];
     return block;
+}
+
+void Chunk::SetBlockId(int x, int y, int z, BLOCK_ID_TYPE id)
+{
+    if (z + 1 > blocks.size()) {
+        blocks.resize(z + 1);
+    }
+    blocks[z][y][x] = id;
+    this->dirty = true;
 }
 
 /**

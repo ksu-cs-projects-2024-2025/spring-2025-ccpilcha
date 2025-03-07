@@ -1,28 +1,35 @@
 #version 410 core
 
-uniform mat4 model;
+// Corrected vertex order for triangle strip
+const vec3 vertexOffsets[24] = vec3[24](
+    // -x face
+    vec3(0, 1, 0), vec3(0, 0, 0), vec3(0, 1, 1), vec3(0, 0, 1),
+    // +x face
+    vec3(1, 0, 0), vec3(1, 1, 0), vec3(1, 0, 1), vec3(1, 1, 1),
+    // -y face (Bottom)
+    vec3(0, 0, 0), vec3(1, 0, 0), vec3(0, 0, 1), vec3(1, 0, 1),
+    // +y face (Top)
+    vec3(1, 1, 0), vec3(0, 1, 0), vec3(1, 1, 1), vec3(0, 1, 1),
+    // -z face
+    vec3(1, 1, 0), vec3(1, 0, 0), vec3(0, 1, 0), vec3(0, 0, 0),
+    // +z face
+    vec3(0, 0, 1), vec3(1, 0, 1), vec3(0, 1, 1), vec3(1, 1, 1)
+);
+
+out vec3 vDirection;
+
 uniform mat4 view;
 uniform mat4 projection;
 
-void main()
-{
-    // Calculate the vertex offset for this face and vertex
-    vec3 offset = vertexOffsets[aFace* 6 + (gl_VertexID % 6)];
-    vec2 texOffset = textureOffsets[aFace * 6 + (gl_VertexID % 6)];
+void main() {
+    // We want the cube to be centered on the camera,
+    // so we remove the camera's translation component.
+    vec3 offset = vertexOffsets[gl_InstanceID * 4 + gl_VertexID] - vec3(0.5,0.5,0.5);
+    mat4 viewNoTranslation = mat4(mat3(view));
+    // Compute the vertex position
+    vec4 pos = projection * viewNoTranslation * vec4(offset, 1.0);
+    gl_Position = pos;
     
-    vec3 worldPos = chunkPos + aPos + offset;
-    
-    if (aBlockID == 1)
-    {
-        if (aFace == 4) layer = 2;
-        else if (aFace != 5) layer = 1;
-        else layer = 0;
-    } else {
-        layer = aBlockID;
-    }
-
-	gl_Position = projection * view * model * vec4(worldPos, 1.0f);
-	TexCoord = texOffset;
-	BlockID = aBlockID;
-	Face = aFace;
+    // Pass the normalized direction vector to the fragment shader.
+    vDirection = offset;
 }
