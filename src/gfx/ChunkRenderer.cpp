@@ -1,3 +1,6 @@
+
+#include <glm/glm.hpp>
+
 #include "ChunkRenderer.hpp"
 #include "ChunkMesh.hpp"
 
@@ -21,7 +24,8 @@ void ChunkRenderer::RenderChunkAt(ChunkPos pos)
         return;
     }
 	
-	Chunk *chunk = this->world->chunks[pos].get();
+	std::shared_ptr<Chunk> chunk = this->world->chunks.at(pos);
+	chunk->inUse.store(true);
 
 	if (!this->world->ChunkLoaded(pos))
 	{
@@ -33,10 +37,10 @@ void ChunkRenderer::RenderChunkAt(ChunkPos pos)
 	std::vector<ChunkVertex> newVerts;
 
 	// then update
-	for (int z = 0; z < chunk->blocks.size(); z++) {
+	for (int z = 0; z < chunk->size(); z++) {
 	for (int y = 0; y < CHUNK_Y_SIZE; y++) {
 	for (int x = 0; x < CHUNK_X_SIZE; x++) {
-		BLOCK_ID_TYPE blockId = chunk->blocks[z][y][x];
+		BLOCK_ID_TYPE blockId = chunk->GetBlockId(x,y,z);
 		if (blockId <= 0) continue;
 		for (int face = 0; face < 6; face++) {
 			int nx = x + nOffsets[face][0];
@@ -47,11 +51,6 @@ void ChunkRenderer::RenderChunkAt(ChunkPos pos)
 			if (neighborBlockId <= 0) {
 				// Add the face to the mesh
 				std::vector<ChunkVertex> blockVerts = {
-					{ x, y, z, blockId, face },
-					{ x, y, z, blockId, face },
-					{ x, y, z, blockId, face },
-					{ x, y, z, blockId, face },
-					{ x, y, z, blockId, face },
 					{ x, y, z, blockId, face },
 				};
 				newVerts.insert(newVerts.end(), blockVerts.begin(), blockVerts.end());
@@ -65,7 +64,8 @@ void ChunkRenderer::RenderChunkAt(ChunkPos pos)
 		this->chunkMeshes.emplace(pos, std::make_shared<ChunkMesh>());
 	}
 
-	this->chunkMeshes[pos]->Load(newVerts);
+	this->chunkMeshes.at(pos)->Load(newVerts);
+	chunk->inUse.store(false);
 }
 
 void ChunkRenderer::RenderChunks()
@@ -87,16 +87,19 @@ void ChunkRenderer::RenderChunks()
 		{
 			threadPool.enqueueTask([this, pos]() {
 				if (!chunkMeshes.contains(pos)) {
-					chunkMeshes[pos] = std::make_shared<ChunkMesh>();
+					this->chunkMeshes.emplace(pos, std::make_shared<ChunkMesh>());
 				}
-	
 				this->RenderChunkAt(pos);
 			});
 		}
     }
 }
 
-ChunkRenderer::ChunkRenderer(World *w) : world(w), chunkShader("assets/shaders/chunk.v.glsl", "assets/shaders/chunk.f.glsl"), chunkMeshes(), threadPool(8)
+ChunkRenderer::ChunkRenderer(World *w) : 
+	world(w), 
+	chunkShader("assets/shaders/chunk.v.glsl", "assets/shaders/chunk.f.glsl"), 
+	chunkMeshes(), 
+	threadPool(16)
 {
 
 }
@@ -121,6 +124,19 @@ void ChunkRenderer::Update(GameContext *c, double deltaTime)
     
     // when chunks are modified, their pointer will be placed in a queue in world called "Dirty" to signal that the chunk has been updated
     // new chunk needs to have the same vao used
+
+    for (int i = 0; i < std::min((size_t)10, chunkRemoveQueue.unsafe_size()); i++)
+    {
+        ChunkPos pos;
+        if (!chunkRemoveQueue.try_pop(pos)) return;
+        auto &cptr = chunkMeshes.at(pos);
+        // If it hasn’t finished loading, skip removal (it’ll be retried later)
+        if (!cptr || !cptr->loaded.load())
+            continue;
+        // Mark for removal and remove the chunk
+        chunkMeshes.at(pos) = nullptr;
+        //chunkMeshes.unsafe_erase(pos);
+    }
 
 	for (auto &meshPair : chunkMeshes) {
 		chunkShader.use();
@@ -160,6 +176,8 @@ bool isChunkVisible(const std::array<Plane, 6>& frustum, const glm::vec3& minCor
 
 void ChunkRenderer::Render(GameContext *c)
 {
+	glEnable(GL_DEPTH_TEST);
+    glEnable(GL_CULL_FACE);
 	c->texture.use(GL_TEXTURE0);
 	
 	chunkShader.use(); // we are using the same shader each time
@@ -182,6 +200,8 @@ void ChunkRenderer::Render(GameContext *c)
 		if (c->plr->chunkPos.distanceXY(meshPair.first) > c->renderDistance) {
 			continue;
 		}
+		chunkShader.setInt("LOD", 2);
+		
 		glm::vec3 chunkPos = glm::vec3(
 			meshPair.first.x * CHUNK_X_SIZE, 
 			meshPair.first.y * CHUNK_Y_SIZE, 

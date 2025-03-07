@@ -1,12 +1,13 @@
 #include "GameEngine.hpp"
 #include "World.hpp"
-#include "glad/gl.h"
+#include "glad/glad.h"
 #include "../util/GLHelper.hpp"
 
 GameEngine::GameEngine(GameContext *c) : context(c), plr()
 {
     world = new World();
     context->plr = &plr;
+    context->world = world;
 }
 
 GameEngine::~GameEngine()

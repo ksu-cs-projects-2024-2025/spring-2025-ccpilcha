@@ -9,10 +9,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
+set(PYTHON_EXECUTABLE ${Python3_EXECUTABLE})
 
 # Set optimization level based on build type
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O1")
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
 elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
 endif()
@@ -53,6 +54,14 @@ FetchContent_Declare(
 )
 
 FetchContent_MakeAvailable(glm)
+
+FetchContent_Declare(
+    fastnoise2
+    GIT_REPOSITORY https://github.com/Auburn/FastNoise2.git
+    GIT_TAG v0.10.0-alpha
+)
+
+FetchContent_MakeAvailable(fastnoise2)
 
 # Fetch SDL3 and dependencies only once
 FetchContent_Declare(
@@ -95,7 +104,6 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(tbb)
 
-
 add_library(SDL3 INTERFACE)
 target_include_directories(SDL3 INTERFACE ${SDL3_SOURCE_DIR}/include)
 target_link_libraries(SDL3 INTERFACE SDL3::SDL3)
@@ -125,23 +133,24 @@ execute_process(
 
 # Run GLAD Generator using the correct Python3 version
 add_custom_command(
-    OUTPUT ${CMAKE_BINARY_DIR}/glad/src/glad.c ${CMAKE_BINARY_DIR}/glad/include/glad/gl.h
+    OUTPUT ${CMAKE_BINARY_DIR}/glad/src/glad.c ${CMAKE_BINARY_DIR}/glad/include/glad/glad.h
     COMMAND ${PYTHON_PATH} -m glad
         --out-path ${GLAD_OUT_PATH}
-        --api gl:core=4.6 c
+        --api gl:compatability=4.1 c
     WORKING_DIRECTORY ${glad_SOURCE_DIR}
 )
 
 # Ensure the generated files are included
-add_library(glad STATIC ${glad_SOURCE_DIR}/src/src/gl.c)
+add_library(glad STATIC ${glad_SOURCE_DIR}/src/src/glad.c)
 target_include_directories(glad PUBLIC ${glad_SOURCE_DIR}/src/include)
 
 add_executable(${EXECUTABLE_NAME})
 
 # Link everything to your project
-target_link_libraries(${EXECUTABLE_NAME} glm glad SDL3_image SDL3_mixer SDL3_ttf SDL3 tbb)
+target_link_libraries(${EXECUTABLE_NAME} glm glad SDL3_image SDL3_mixer SDL3_ttf SDL3 tbb FastNoise)
 target_include_directories(${EXECUTABLE_NAME} PRIVATE ${glad_SOURCE_DIR}/src/include)
 target_include_directories(${EXECUTABLE_NAME} PRIVATE ${tbb_SOURCE_DIR}/src/include)
+target_include_directories(${EXECUTABLE_NAME} PUBLIC ${fastnoise2_SOURCE_DIR}/include)
 
 add_custom_target(assets
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_LIST_DIR}/assets ${CMAKE_BINARY_DIR}/assets

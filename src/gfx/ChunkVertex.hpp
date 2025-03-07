@@ -2,7 +2,6 @@
 
 struct ChunkVertex
 {
-    //int position[3]; // relative to current chunk position
     //int blockId;
     //int faceNum;
     //	0	FRONT	-X (X = 0)

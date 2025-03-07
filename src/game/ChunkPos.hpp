@@ -52,6 +52,15 @@ struct ChunkPos
         return ChunkPos{x + other.x, y + other.y, z + other.z};
     }
 
+    friend std::ostream& operator<<(std::ostream& os, const ChunkPos &pos) {
+        os << pos.toString();
+        return os;
+    }
+
+    std::string toString() const {
+        return "{" + std::to_string(x) + ", " + std::to_string(y) + ", " + std::to_string(z) + "}";
+    }
+
     ChunkPos& operator+=(const ChunkPos &other) {
         x += other.x;
         y += other.y;

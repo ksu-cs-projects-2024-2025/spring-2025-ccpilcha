@@ -7,6 +7,7 @@
 
 #include "../game/GameContext.hpp"
 #include "../util/ThreadPool.hpp"
+#include "Mesh.hpp"
 #include "VertexAttribute.hpp"
 #include "ChunkPos.hpp"
 #include "ChunkMesh.hpp"
@@ -27,7 +28,7 @@ class ChunkRenderer
     void RenderChunks();
 
 public:
-    tbb::concurrent_queue<ChunkPos> chunkRenderQueue;
+    tbb::concurrent_queue<ChunkPos> chunkRenderQueue, chunkRemoveQueue;
     std::mutex queueRenderMutex;
     std::condition_variable queueCV;
     ChunkRenderer(World*);

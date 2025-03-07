@@ -3,7 +3,7 @@
 #define GLHELPER_H
 
 #include <iostream>
-#include <glad/gl.h>
+#include <glad/glad.h>
 
 // This macro function shall encompass any OpenGL function called in order to track errors.
 #define glCall(x) GL_clearError(); \
