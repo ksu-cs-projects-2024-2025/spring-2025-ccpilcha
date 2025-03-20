@@ -109,6 +109,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
     glViewport(0, 0, 800, 600);
     glCall(glEnable(GL_DEPTH_TEST));
     glCall(glEnable(GL_CULL_FACE));
+    glEnable(GL_DEBUG_OUTPUT);
 
 #ifdef G_DEBUG
     std::cout << "Vendor: " << glGetString(GL_VENDOR) << std::endl;

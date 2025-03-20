@@ -9,6 +9,16 @@ struct ChunkPos
     CHUNK_POS_X_TYPE x;
     CHUNK_POS_Y_TYPE y;
     CHUNK_POS_Z_TYPE z;
+    
+    double distance(const ChunkPos &other) const
+    {
+        return sqrt((x - other.x) * (x - other.x) + (y - other.y) * (y - other.y) + (z - other.z) * (z - other.z));
+    }
+
+    double distanceXY(const ChunkPos &other) const
+    {
+        return sqrt((x - other.x) * (x - other.x) + (y - other.y) * (y - other.y));
+    }
 
     bool operator==(const ChunkPos &other) const
     {
@@ -18,17 +28,6 @@ struct ChunkPos
     bool operator!=(const ChunkPos &other) const
     {
         return x != other.x || y != other.y || z != other.z;
-    }
-
-    double distanceXY(const ChunkPos &other) const
-    {
-        return sqrt((x - other.x) * (x - other.x) + (y - other.y) * (y - other.y));
-    }
-    
-
-    double distance(const ChunkPos &other) const
-    {
-        return sqrt((x - other.x) * (x - other.x) + (y - other.y) * (y - other.y) + (z - other.z) * (z - other.z));
     }
     
     /**
@@ -57,10 +56,6 @@ struct ChunkPos
         return os;
     }
 
-    std::string toString() const {
-        return "{" + std::to_string(x) + ", " + std::to_string(y) + ", " + std::to_string(z) + "}";
-    }
-
     ChunkPos& operator+=(const ChunkPos &other) {
         x += other.x;
         y += other.y;
@@ -79,6 +74,10 @@ struct ChunkPos
         return *this;
     }
 
+
+    std::string toString() const {
+        return "{" + std::to_string(x) + ", " + std::to_string(y) + ", " + std::to_string(z) + "}";
+    }
 };
 
 

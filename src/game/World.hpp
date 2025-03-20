@@ -10,6 +10,7 @@
 #include "../gfx/ChunkRenderer.hpp"
 #include "../util/ThreadPool.hpp"
 #include "Chunk.hpp"
+#include "PrioritizedChunk.hpp"
 #include "ChunkPos.hpp"
 #include "../gfx/Ray.hpp"
 
@@ -28,7 +29,9 @@ public:
     // Shared queue and synchronization tools
     std::mutex queueLoadMutex, removeMutex;
     std::condition_variable queueCV;
-    tbb::concurrent_queue<ChunkPos> chunkLoadQueue, chunkRemoveQueue;
+    tbb::concurrent_queue<PrioritizedChunk> chunkLoadQueue;
+    tbb::concurrent_queue<ChunkPos> chunkRemoveQueue;
+    tbb::concurrent_queue<std::shared_ptr<Chunk>> freeChunks;
     tbb::concurrent_queue<Ray> rays;
     tbb::concurrent_unordered_map<ChunkPos, std::shared_ptr<Chunk>> chunks; // this is a map of chunk positions to chunks loaded in memory
     World();

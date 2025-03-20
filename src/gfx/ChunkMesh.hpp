@@ -20,15 +20,17 @@ protected:
     bool facesVisible[6];
     GLsync bufferSync = 0;
 
-    std::unique_ptr<std::mutex> meshMutex; // Protects vertex data
-    std::unique_ptr<std::atomic<bool>> meshSwapping; // Indicates if the mesh is ready
+    std::mutex meshMutex; // Protects vertex data
+    std::atomic<bool> meshSwapping; // Indicates if the mesh is ready
 public:
-    std::atomic<bool> loaded;
+    std::atomic<bool> rendering, isValid;
     ChunkMesh();
     ~ChunkMesh();
+    bool IsReusable() const { return init; }
     void Load(std::vector<ChunkVertex> data);
     void Swap();
     void Update(GameContext *c);
     void UploadToGPU();
     void Render();
+    void Clear();
 };

@@ -12,36 +12,29 @@ std::vector<VertexAttribute> ChunkVertexAttribs = {
 
 
 ChunkMesh::ChunkMesh() : 
-	meshMutex(std::make_unique<std::mutex>()),
-	meshSwapping(std::make_unique<std::atomic<bool>>(true)),
+	meshMutex(std::mutex()),
+	meshSwapping(true),
 	currentBuffer(&this->bufferA)
 {
 }
 
 ChunkMesh::~ChunkMesh()
 {
-    std::lock_guard<std::mutex> lock(*meshMutex);
+    std::lock_guard<std::mutex> lock(meshMutex);
 
-    if (vbo) {
-        glDeleteBuffers(1, &vbo);
-    }
-    if (vao) {
-        glDeleteVertexArrays(1, &vao);
-    }
-    if (bufferSync) {
-        glDeleteSync(bufferSync);
-        bufferSync = nullptr;
-    }
+    if (vbo) glDeleteBuffers(1, &vbo);
+    if (vao) glDeleteVertexArrays(1, &vao);
 }
 
 void ChunkMesh::Load(std::vector<ChunkVertex> data) {
-    std::lock_guard<std::mutex> lock(*meshMutex);
-    if (bufferAFlag) {
-        bufferA = std::move(data);
-    } else {
-        bufferB = std::move(data);
-    }
-	(*meshSwapping).store(true);
+    std::lock_guard<std::mutex> lock(meshMutex);
+
+    if (bufferAFlag) 
+		bufferA = std::move(data);
+	else 
+		bufferB = std::move(data);
+
+	meshSwapping.store(true);
 }
 
 /**
@@ -53,11 +46,10 @@ void ChunkMesh::Load(std::vector<ChunkVertex> data) {
  * 
  */
 void ChunkMesh::Swap() {
-    std::lock_guard<std::mutex> lock(*meshMutex);
-    if ((*meshSwapping).load()) {
-        currentBuffer = bufferAFlag ? &bufferA : &bufferB;
-		bufferAFlag = !bufferAFlag;
-    }
+    std::lock_guard<std::mutex> lock(meshMutex);
+    if (!meshSwapping.load()) return;
+	currentBuffer = bufferAFlag ? &bufferA : &bufferB;
+	bufferAFlag = !bufferAFlag;
 }
 
 void ChunkMesh::Update(GameContext *c)
@@ -71,9 +63,7 @@ void ChunkMesh::Update(GameContext *c)
 		glCall(glBindVertexArray(this->vao));
 		int num = 0;
 		for (auto& vAttrib : ChunkVertexAttribs)
-		{
 			vAttrib.enable(num++);
-		}
 	}
     Swap();
     UploadToGPU();
@@ -85,19 +75,15 @@ void ChunkMesh::Update(GameContext *c)
  * @warning Must be ran from the main window/graphics thread!
  */
 void ChunkMesh::UploadToGPU() {
-    if (!(*meshSwapping).load()) return;
+    if (!meshSwapping.load() || !init) return;
 
-    std::lock_guard<std::mutex> lock(*meshMutex);
-
-    if (bufferSync) {
-        glDeleteSync(bufferSync);
-    }
-    bufferSync = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+    std::lock_guard<std::mutex> lock(meshMutex);
 
 	glCall(glBindBuffer(GL_ARRAY_BUFFER, this->vbo));
 	glCall(glBindVertexArray(this->vao));
     glBufferData(GL_ARRAY_BUFFER, currentBuffer->size() * sizeof(ChunkVertex),  currentBuffer->data(), GL_DYNAMIC_DRAW);
-	(*meshSwapping).store(false);
+	meshSwapping.store(false);
+	isValid = true;
 }
 
 /**
@@ -106,20 +92,23 @@ void ChunkMesh::UploadToGPU() {
  */
 void ChunkMesh::Render()
 {
-	std::lock_guard<std::mutex> lock(*this->meshMutex);
+	std::lock_guard<std::mutex> lock(this->meshMutex);
 	
-	if (this->currentBuffer->empty()) 
-	{
-		return;
-	}
+	if (!isValid.load()) return;
+	if (this->currentBuffer->empty()) return;
 
-    if (bufferSync) {
-        GLenum waitReturn = glClientWaitSync(bufferSync, GL_SYNC_FLUSH_COMMANDS_BIT, 1000000000);
-        if (waitReturn == GL_TIMEOUT_EXPIRED) {
-            return;
-        }
-    }
+	this->rendering = true;
 
 	glCall(glBindVertexArray(this->vao));
 	glCall(glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, this->currentBuffer->size()));
+
+	this->rendering = false;
+}
+
+void ChunkMesh::Clear()
+{
+	isValid = false;
+    if (vbo) glDeleteBuffers(1, &vbo);
+    if (vao) glDeleteVertexArrays(1, &vao);
+    this->init = false;
 }

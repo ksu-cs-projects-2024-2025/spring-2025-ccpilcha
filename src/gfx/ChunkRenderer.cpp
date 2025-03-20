@@ -17,22 +17,24 @@ constexpr int8_t nOffsets[6][3] = {
 	{0, 0, 1}  // +z
 };
 
-void ChunkRenderer::RenderChunkAt(ChunkPos pos)
+void ChunkRenderer::RenderChunkAt(PrioritizedChunk pChunk)
 {
+	ChunkPos pos = pChunk.pos;
 	if (!this->world->AreAllNeighborsLoaded(pos)) {
-		chunkRenderQueue.push(pos);
+		chunkRenderQueue.push(pChunk);
         return;
     }
 	
 	std::shared_ptr<Chunk> chunk = this->world->chunks.at(pos);
-	chunk->inUse.store(true);
 
 	if (!this->world->ChunkLoaded(pos))
 	{
-		chunkRenderQueue.push(pos);
+		chunkRenderQueue.push(pChunk);
 		return;
 	}
 	if (!chunk->dirty) return;
+
+	chunk->inUse.store(true);
 
 	std::vector<ChunkVertex> newVerts;
 
@@ -47,14 +49,10 @@ void ChunkRenderer::RenderChunkAt(ChunkPos pos)
 			int ny = y + nOffsets[face][1];
 			int nz = z + nOffsets[face][2];
 
-			uint16_t neighborBlockId = this->world->GetBlockId(pos, nx, ny, nz);
-			if (neighborBlockId <= 0) {
-				// Add the face to the mesh
-				std::vector<ChunkVertex> blockVerts = {
-					{ x, y, z, blockId, face },
-				};
-				newVerts.insert(newVerts.end(), blockVerts.begin(), blockVerts.end());
-			}
+			if (this->world->GetBlockId(pos, nx, ny, nz) > 0) continue;
+
+			// Add the face to the mesh
+			newVerts.push_back({ x, y, z, blockId, face });
 		}
 	}
 	}
@@ -68,28 +66,46 @@ void ChunkRenderer::RenderChunkAt(ChunkPos pos)
 	chunk->inUse.store(false);
 }
 
-void ChunkRenderer::RenderChunks()
+void ChunkRenderer::RenderChunks(GameContext *c)
 {
 
     // TODO: this thread needs to end when the game exits the playing state
     while (true)
     {
-        ChunkPos pos;
-
         {
             std::unique_lock<std::mutex> lock(queueRenderMutex);
             queueCV.wait(lock, [this] { return !chunkRenderQueue.empty(); });
         }
 
-		if (!chunkRenderQueue.try_pop(pos)) continue;
+        PrioritizedChunk pChunk;
+		
+		if (!chunkRenderQueue.try_pop(pChunk)) continue;
+		
+		ChunkPos pos = pChunk.pos;
 
 		if (this->world->ChunkReady(pos))
 		{
-			threadPool.enqueueTask([this, pos]() {
-				if (!chunkMeshes.contains(pos)) {
-					this->chunkMeshes.emplace(pos, std::make_shared<ChunkMesh>());
+			if (!chunkMeshes.contains(pos))
+			{
+				std::shared_ptr<ChunkMesh> mesh;
+				if (!freeMeshes.empty() && freeMeshes.try_pop(mesh))
+				{
+					if (!mesh->IsReusable()) 
+					{
+						freeMeshes.push(mesh);
+						this->chunkMeshes.emplace(pos, std::make_shared<ChunkMesh>());
+					} 
+					else
+						this->chunkMeshes.emplace(pos, mesh);
 				}
-				this->RenderChunkAt(pos);
+				else 
+					this->chunkMeshes.emplace(pos, std::make_shared<ChunkMesh>());
+			}
+			int genID = chunkGenFrameId.load();
+			threadPool.enqueueTask([this, c, pChunk]() {
+                if (c->plr->chunkPos.distance(pChunk.pos) > c->renderDistance * 1.5) return;
+				// it is still possible for the taskid to increment afterwards, but this shouldn't be of much issue
+				this->RenderChunkAt(pChunk);
 			});
 		}
     }
@@ -111,9 +127,8 @@ ChunkRenderer::~ChunkRenderer()
 void ChunkRenderer::Init(GameContext *c)
 {
 
-    std::thread thr(&ChunkRenderer::RenderChunks, this);
+    std::thread thr(&ChunkRenderer::RenderChunks, this, c);
     thr.detach();
-	chunkMeshes.reserve(10000);
 
 }
 
@@ -129,13 +144,13 @@ void ChunkRenderer::Update(GameContext *c, double deltaTime)
     {
         ChunkPos pos;
         if (!chunkRemoveQueue.try_pop(pos)) return;
+		if (!chunkMeshes.contains(pos)) continue;
         auto &cptr = chunkMeshes.at(pos);
         // If it hasn’t finished loading, skip removal (it’ll be retried later)
-        if (!cptr || !cptr->loaded.load())
-            continue;
+        if (!cptr) continue;
         // Mark for removal and remove the chunk
-        chunkMeshes.at(pos) = nullptr;
-        //chunkMeshes.unsafe_erase(pos);
+        chunkMeshes.at(pos)->Clear();
+		freeMeshes.push(chunkMeshes.at(pos));
     }
 
 	for (auto &meshPair : chunkMeshes) {
@@ -196,25 +211,30 @@ void ChunkRenderer::Render(GameContext *c)
 	std::array<Plane, 6> frustumPlanes = extractFrustumPlanes(VP);
 	chunkShader.setMat4("model", glm::translate(glm::mat4(1.0f), camPos));
 
-	for (auto &meshPair : chunkMeshes) {
-		if (c->plr->chunkPos.distanceXY(meshPair.first) > c->renderDistance) {
-			continue;
-		}
+	for (int dz = -c->renderDistance; dz < c->renderDistance; dz++){
+	for (int dy = -c->renderDistance; dy < c->renderDistance; dy++){
+	for (int dx = -c->renderDistance; dx < c->renderDistance; dx++){
+		ChunkPos pos = c->plr->chunkPos + ChunkPos{dx,dy,dz};
+		if (!chunkMeshes.contains(pos)) continue;
+		std::shared_ptr<ChunkMesh> mesh = chunkMeshes.at(pos);
+
 		chunkShader.setInt("LOD", 2);
 		
 		glm::vec3 chunkPos = glm::vec3(
-			meshPair.first.x * CHUNK_X_SIZE, 
-			meshPair.first.y * CHUNK_Y_SIZE, 
-			meshPair.first.z * CHUNK_Z_SIZE
+			pos.x * CHUNK_X_SIZE, 
+			pos.y * CHUNK_Y_SIZE, 
+			pos.z * CHUNK_Z_SIZE
 		);
 		glm::vec3 minCorner = chunkPos + camPos;
 		glm::vec3 maxCorner = minCorner + glm::vec3(CHUNK_X_SIZE, CHUNK_Y_SIZE, CHUNK_Z_SIZE);
 
 		if (isChunkVisible(frustumPlanes, minCorner, maxCorner)) {
 			chunkShader.setVec3("chunkPos", chunkPos);
-			meshPair.second->Render();
+			mesh->Render();
 		} else {
 			continue;
 		}
+	}
+	}
 	}
 }

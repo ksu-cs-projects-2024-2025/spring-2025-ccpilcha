@@ -1,7 +1,7 @@
 #include "Chunk.hpp"
 #include <math.h>
 
-Chunk::Chunk(ChunkPos pos) : pos(pos), blocks()
+Chunk::Chunk() : blocks()
 {
 }
 
@@ -46,6 +46,11 @@ void Chunk::SetBlockId(int x, int y, int z, BLOCK_ID_TYPE id)
     }
     blocks[z][y][x] = id;
     this->dirty = true;
+}
+
+void Chunk::Clear()
+{
+    blocks.clear();
 }
 
 /**

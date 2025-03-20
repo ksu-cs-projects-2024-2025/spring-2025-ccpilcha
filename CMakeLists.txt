@@ -17,7 +17,6 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
 elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
 endif()
-
 # Enable incomplete features in libc++
 add_definitions(-D_LIBCPP_ENABLE_INCOMPLETE_FEATURES)
 

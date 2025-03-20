@@ -1,7 +1,24 @@
+/**
+ * @file World.cpp
+ * @author Cameron Pilchard (you@domain.com)
+ * @brief 
+ * @date 2025-03-07
+ * 
+ * @copyright Copyright (c) 2025
+ */
+
 #include "World.hpp"
 
 #include <thread>
 
+/**
+ * @brief Checks if all neighboring chunks exist and are loaded (have data)
+ * This is a prerequisite to rendering a chunk since we want to know what faces we can cull
+ * 
+ * @param pos the position in question
+ * @return true If all neighbors exist
+ * @return false Otherwise
+ */
 bool World::AreAllNeighborsLoaded(const ChunkPos &pos)
 {
     // Define neighbor offsets (adjust if you need more than 6 directions)
@@ -24,7 +41,15 @@ bool World::AreAllNeighborsLoaded(const ChunkPos &pos)
     return true;
 }
 
-// this will allow for checking air blocks, even in neighboring chunks
+/**
+ * @brief This will allow for checking air blocks, even in neighboring chunks (calculates offset as needed)
+ * 
+ * @param pos The position of the chunk
+ * @param x relative block position coord X
+ * @param y relative block position coord Y
+ * @param z relative block position coord Z
+ * @return the block present
+ */
 BLOCK_ID_TYPE World::GetBlockId(const ChunkPos &pos, int x, int y, int z)
 {
     // make sure this is a proper bound for a chunk
@@ -47,6 +72,15 @@ BLOCK_ID_TYPE World::GetBlockId(const ChunkPos &pos, int x, int y, int z)
     return block;
 }
 
+/**
+ * @brief Changes a block within a chunk
+ * 
+ * @param pos The position of the chunk
+ * @param x relative block position coord X
+ * @param y relative block position coord Y
+ * @param z relative block position coord Z
+ * @return the block present
+ */
 void World::SetBlockId(const ChunkPos &pos, int x, int y, int z, BLOCK_ID_TYPE id)
 {
     // make sure this is a proper bound for a chunk
@@ -66,15 +100,14 @@ void World::SetBlockId(const ChunkPos &pos, int x, int y, int z, BLOCK_ID_TYPE i
 
     chunks.at(adjusted)->SetBlockId(x,y,z,id);
 
-    renderer.chunkRenderQueue.push(adjusted);
+    renderer.chunkRenderQueue.push({adjusted, std::numeric_limits<float>::lowest()});
     renderer.queueCV.notify_one();
 }
 
 bool gameRunning = true;
 
 /**
- * @brief 
- * Implements the J. Amanatides and A. Woo ray tracing algorithm
+ * @brief Implements the J. Amanatides and A. Woo ray tracing algorithm
  * 
  * http://www.cs.yorku.ca/~amana/research/grid.pdf
  * @param c 
@@ -90,7 +123,7 @@ void World::TraverseRays(GameContext *c)
         step.y = (ray.direction.y >= 0) ? 1 : -1;
         step.z = (ray.direction.z >= 0) ? 1 : -1;
         
-
+        // TODO
     }
 }
 
@@ -112,40 +145,62 @@ void World::LoadChunks(GameContext *c)
 
             loadSignal = false;
         }
+
         ChunkPos pPos = c->plr->chunkPos;
-        for (int r = 0; r < c->renderDistance*sqrt(3)+1; r++) {
-        for (int dz = -r; dz < r; dz++) {
+        
+        for (const auto &[pos, cptr]: chunks)
+        {
+            if (pos.distance(pPos) > c->renderDistance * 1.5 && cptr->loaded && !cptr->removing) {
+                cptr->removing = true;
+                chunkRemoveQueue.push(pos);
+                this->renderer.chunkRemoveQueue.push(pos);
+            }
+        }
+
+        // This looping in a radius extending outwards from the centermost chunk.
+        int r = c->renderDistance;
+        for (int dz = r - 1; dz >= -r; dz--) {
         for (int dy = -r; dy < r; dy++) {
         for (int dx = -r; dx < r; dx++) {
             int x = pPos.x + dx, y = pPos.y + dy, z = pPos.z + dz;
-            if (dx*dx + dy*dy > r*r) continue;
             ChunkPos nPos({x,y,z});
-            if (!ChunkReady(nPos)) {
-                this->chunks.emplace(nPos, std::make_shared<Chunk>(nPos));
-                this->chunks.at(nPos)->Init(c);
-                threadPool.enqueueTask([this, nPos]() {
-                    if (ChunkReady(nPos)) {
-                        this->chunks.at(nPos)->visible = this->terrain.getVisibilityFlags(nPos);
-                        std::vector<CHUNK_DATA> data = this->terrain.generateChunk(nPos);
-                        this->chunks.at(nPos)->Load(data);
-                        if (this->chunks.at(nPos)->visible == 0) return;
-                        if (!this->chunks.at(nPos)->IsEmpty())
-                        {
-                            renderer.chunkRenderQueue.push(nPos);
-                            renderer.queueCV.notify_one();
-                            // we should then queue another thread responsible for loading chunk vertex data
-                        }
-                        this->chunks.at(nPos)->loaded.store(true);
+            // if the chunk is not loaded (not in the hashtable) then we need to create the instance
+            if (ChunkReady(nPos)) continue;
+
+
+            if (!freeChunks.empty()) {
+                std::shared_ptr<Chunk> chunk;
+                if (!freeChunks.try_pop(chunk))
+                    this->chunks[nPos] = std::make_shared<Chunk>();
+                else
+                    this->chunks[nPos] = chunk;
+            }
+            else
+                this->chunks[nPos] = std::make_shared<Chunk>();
+            this->chunks.at(nPos)->pos = nPos;
+            this->chunks.at(nPos)->Init(c);
+            int genID = renderer.chunkGenFrameId.load();
+            threadPool.enqueueTask([this, c, pPos, nPos]() {
+                if (c->plr->chunkPos.distance(nPos) > c->renderDistance * 1.5) return;
+                if (ChunkReady(nPos)) {
+                    this->chunks.at(nPos)->visible = this->terrain.getVisibilityFlags(nPos);
+                    std::vector<CHUNK_DATA> data = this->terrain.generateChunk(nPos);            
+                    this->chunks.at(nPos)->Load(data);
+                    if (this->chunks.at(nPos)->visible == 0) return;
+                    if (!this->chunks.at(nPos)->IsEmpty())
+                    {
+                        renderer.chunkRenderQueue.push({nPos, (float)nPos.distance(pPos)});
+                        renderer.queueCV.notify_one();
+                        // we should then queue another thread responsible for loading chunk vertex data
                     }
-                });
-            }
-        }}}}
-        for (const auto &[pos, cptr]: chunks)
-        {
-            if (pos.distance(pPos) > c->renderDistance) {
-                chunkRemoveQueue.push(pos);
-            }
-        }
+                    this->chunks.at(nPos)->loaded.store(true); 
+                    if (this->chunks.at(nPos)->pos != nPos) {
+                        std::cerr << "[WARNING] Chunk position mismatch: rendered pos != memory pos!\n";
+                        return;
+                    }
+                }
+            });
+        }}}
     }
 }
 
@@ -189,6 +244,10 @@ void World::OnEvent(GameContext *c, const SDL_Event *event)
 /**
  * @brief This handles the loading and unloading of chunks based upon a player's position and render distance.
  * 
+ * First, we need to handle all rays created by the player (just stores their position and previous camera.forward vector)
+ * This is for creating/destroying blocks.
+ * 
+ * Then, if the player's position has changed since the last update cycle, we need to notify the Load thread to process all chunks which need to be rendered.alignas
  * @param c 
  * @param deltaTime 
  */
@@ -201,6 +260,7 @@ void World::Update(GameContext *c, double deltaTime)
     // check which chunks need to be loaded
     if (c->plr->chunkPos != c->plr->lastPos)
     {
+        renderer.chunkGenFrameId.fetch_add(1, std::memory_order_relaxed);
         {
             std::lock_guard<std::mutex> lock(queueLoadMutex);
             loadSignal = true;
@@ -218,7 +278,9 @@ void World::Update(GameContext *c, double deltaTime)
         if (!cptr || !cptr->loaded.load())
             continue;
         // Mark for removal and remove the chunk
-        cptr->removing.store(true);
+        cptr->Clear();
+        freeChunks.push(cptr);
+        cptr->removing.store(false);
     }
 
     // needs to be aware of the chunks which are queued for render

@@ -1,3 +1,18 @@
+/**
+ * @file Chunk.hpp
+ * @author Cameron Pilchard
+ * @brief stores chunk metadata
+ * @version 0.1
+ * @date 2025-03-07
+ * 
+ * @copyright Copyright (c) 2025
+ * 
+ * The way I am currently working this is through a vector which will store 2D arrays of blocks along z-layer.
+ * This will save memory when there are air blocks.
+ * 
+ * I have considered switching to either RLE or Chunk palettes, and the latter seems favorable for constant lookup/write time.
+ */
+
 #pragma once
 
 #include <array>
@@ -14,14 +29,15 @@ class Chunk
     // the idea here is that we can store the block IDs in a 3D array, but condense along the z-axis
     // if a chunk is empty (air) then this will be empty as well
     std::vector<CHUNK_DATA> blocks;
-    public:
-    std::mutex blockMutex;
+public:
     ChunkPos pos;
     bool dirty = true;
+    // eventually this will store all 15 possible combinations of paths through a chunk.
+    // inspiration: https://tomcc.github.io/2014/08/31/visibility-1.html 
     uint16_t visible;
     std::atomic<bool> loaded{false}, inUse{false}, removing{false};
 
-    Chunk(ChunkPos pos);
+    Chunk();
     ~Chunk();
     bool IsEmpty();
     void Init(GameContext* c);
@@ -29,5 +45,6 @@ class Chunk
     int size();
     BLOCK_ID_TYPE GetBlockId(int x, int y, int z);
     void SetBlockId(int x, int y, int z, BLOCK_ID_TYPE id);
+    void Clear();
     static glm::vec3 remainder(glm::vec3 input);
 };

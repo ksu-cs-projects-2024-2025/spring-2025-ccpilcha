@@ -51,7 +51,7 @@ struct GameContext {
 
         moveSpeed = 20.f;
 
-        renderDistance = 16;
+        renderDistance = 32;
         maxBlockDistance = 10.0f;
 
         forward = SDLK_W;
