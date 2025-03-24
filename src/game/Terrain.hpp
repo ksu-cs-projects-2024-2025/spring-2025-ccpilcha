@@ -11,6 +11,7 @@ struct Terrain {
 
     FastNoise::SmartNode<FastNoise::Perlin> noise;
     Terrain();
+    ~Terrain();
     std::vector<CHUNK_POS_Z_TYPE> generateHeightMap(ChunkPos pos);
     uint16_t getVisibilityFlags(ChunkPos pos);
     std::vector<CHUNK_DATA> generateChunk(ChunkPos pos);

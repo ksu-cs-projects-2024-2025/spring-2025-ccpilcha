@@ -153,10 +153,25 @@ void ChunkRenderer::Update(GameContext *c, double deltaTime)
 		freeMeshes.push(chunkMeshes.at(pos));
     }
 
+	std::vector<std::shared_ptr<ChunkMesh>> meshes;
+	int init = 0;
+	chunkShader.use();
 	for (auto &meshPair : chunkMeshes) {
-		chunkShader.use();
-		meshPair.second->Update(c);
+		if (meshPair.second->isInit())
+			meshPair.second->Update(c);
+		else
+			meshes.push_back(meshPair.second);
 	}
+
+	GLuint* vao = new GLuint[meshes.size()];
+	GLuint* vbo = new GLuint[meshes.size()];
+	glCall(glGenBuffers(meshes.size(), vbo));
+	glCall(glGenVertexArrays(meshes.size(), vao));
+	int i = 0;
+	for(auto mesh : meshes) {
+		mesh->Init(vao[i], vbo[i]);
+		i++;
+	};
 }
 
 // Check if an AABB is inside the frustum

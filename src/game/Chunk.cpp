@@ -1,5 +1,6 @@
 #include "Chunk.hpp"
 #include <math.h>
+#include <ostream>
 
 Chunk::Chunk() : blocks()
 {

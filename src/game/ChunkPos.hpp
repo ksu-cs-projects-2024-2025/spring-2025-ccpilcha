@@ -1,6 +1,7 @@
 #pragma once
 
 #include <glm/glm.hpp>
+#include <string>
 
 #include "ChunkConstants.hpp"
 
@@ -87,9 +88,9 @@ namespace std {
 	struct hash<ChunkPos> {
 		std::size_t operator()(const ChunkPos& pos) const {
 			size_t seed = 1099511628211ULL; // A large prime (FNV offset basis)
-			size_t hx = std::hash<int32_t>{}(pos.x);
-			size_t hy = std::hash<int32_t>{}(pos.y);
-			size_t hz = std::hash<int32_t>{}(pos.z);
+			size_t hx = std::hash<size_t>{}(pos.x);
+			size_t hy = std::hash<size_t>{}(pos.y);
+			size_t hz = std::hash<size_t>{}(pos.z);
 
 			// Mix the hash values with golden ratio
 			seed ^= hx + 0x9e3779b9 + (seed << 6) + (seed >> 2);

@@ -2,13 +2,20 @@
 
 #define SDL_MAIN_USE_CALLBACKS 1
 #define G_DEBUG
+#include <string>
 #include <iostream>
+#include <cstdint>
 #include <glad/glad.h>
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 #include <SDL3/SDL_gpu.h>
+#include <png.h>
 #include <SDL3_image/SDL_image.h>
 #include <SDL3_ttf/SDL_ttf.h>
+
+#define _CRTDBG_MAP_ALLOC
+#include <stdlib.h>
+#include <crtdbg.h>
 
 #include "util/GLHelper.hpp"
 #include "game/GameEngine.hpp"
@@ -33,6 +40,7 @@ static int      frameCount = 0; // Keeps track off the nth frame
 // Runs at start up
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
 {
+    _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
     // Instantiate variables
     Uint64 then = SDL_GetPerformanceCounter();
     frequency = SDL_GetPerformanceFrequency();
@@ -50,6 +58,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
         exit(1);
     }
 
+
     // We now need to declare the use of OpenGL version 4.1
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
@@ -57,15 +66,14 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
     // We are not using compatability mode ()
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
     // This is important for MacOS because of Metal
-#ifdef __APPLE__
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG);
-#endif
 
     // We want to have a double buffer to prevent image stitching.
     // Depth size determines clarity on depth testing (3D rendering)
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
 
+    SDL_SetHint(SDL_HINT_RENDER_VSYNC, "0");
     // 0 disables V-Sync in SDL
     // TODO: should we allow V-Sync as a configuration?
     SDL_GL_SetSwapInterval(0);
@@ -104,6 +112,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
     }
 
     SDL_GL_MakeCurrent(window, G_OpenGL_CONTEXT);
+    SDL_SetCurrentThreadPriority(SDL_THREAD_PRIORITY_HIGH);
     
     // Now we can start using OpenGL
     glViewport(0, 0, 800, 600);
@@ -159,10 +168,10 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     // About every 250ms, I'd like to refresh the console on the FPS
     if (accTime >= 0.25) {
         SDL_SetWindowTitle(window, (appname + std::string(" - FPS: ") + std::to_string((double) frameCount/accTime)).c_str());
-        fprintf(stdout, "\rFPS: %.6f", (double) frameCount/accTime);
+        //fprintf(stdout, "\rFPS: %.6f", (double) frameCount/accTime);
         accTime = 0.0;
         frameCount = 0;
-        std::cout.flush();
+        //std::cout.flush();
     }
     // We need to update before we render
     game->Update(deltaTime);
@@ -174,6 +183,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 // This function runs once at shutdown.
 void SDL_AppQuit(void *appstate, SDL_AppResult result)
 {
+    _CrtDumpMemoryLeaks();
     // TODO: make sure everything get saved!
     delete game;
     delete context;

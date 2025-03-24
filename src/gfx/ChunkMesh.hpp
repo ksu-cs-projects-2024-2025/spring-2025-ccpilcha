@@ -12,7 +12,7 @@
 class ChunkMesh
 {
 protected:
-    bool init;
+    bool init = false;
     GLuint vao, vbo;
     //std::vector<uint> vertices; // we will store vertices as a singular integer! (someday)
     std::vector<ChunkVertex> bufferA, bufferB, *currentBuffer, *renderBuffer; // for now we must succumb to simplicity :(
@@ -27,6 +27,8 @@ public:
     ChunkMesh();
     ~ChunkMesh();
     bool IsReusable() const { return init; }
+    bool isInit() const { return init; }
+    void Init(GLuint vao, GLuint vbo);
     void Load(std::vector<ChunkVertex> data);
     void Swap();
     void Update(GameContext *c);

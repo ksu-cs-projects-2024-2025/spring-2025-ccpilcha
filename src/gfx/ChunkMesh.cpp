@@ -12,7 +12,7 @@ std::vector<VertexAttribute> ChunkVertexAttribs = {
 
 
 ChunkMesh::ChunkMesh() : 
-	meshMutex(std::mutex()),
+	meshMutex(),
 	meshSwapping(true),
 	currentBuffer(&this->bufferA)
 {
@@ -24,6 +24,20 @@ ChunkMesh::~ChunkMesh()
 
     if (vbo) glDeleteBuffers(1, &vbo);
     if (vao) glDeleteVertexArrays(1, &vao);
+}
+
+void ChunkMesh::Init(GLuint vao, GLuint vbo)
+{
+	this->init = true;
+	this->vao = vao;
+	this->vbo = vbo;
+	glCall(glBindBuffer(GL_ARRAY_BUFFER, this->vbo));
+	glCall(glBindVertexArray(this->vao));
+	int num = 0;
+	for (auto& vAttrib : ChunkVertexAttribs)
+	{
+		vAttrib.enable(num++);
+	}
 }
 
 void ChunkMesh::Load(std::vector<ChunkVertex> data) {
@@ -54,19 +68,9 @@ void ChunkMesh::Swap() {
 
 void ChunkMesh::Update(GameContext *c)
 {
-	if (!this->init)
-	{
-		this->init = true;
-		glCall(glGenBuffers(1, &this->vbo));
-		glCall(glGenVertexArrays(1, &this->vao));
-		glCall(glBindBuffer(GL_ARRAY_BUFFER, this->vbo));
-		glCall(glBindVertexArray(this->vao));
-		int num = 0;
-		for (auto& vAttrib : ChunkVertexAttribs)
-			vAttrib.enable(num++);
-	}
-    Swap();
-    UploadToGPU();
+	if (!this->init) return;
+	Swap();
+	UploadToGPU();
 }
 
 /**

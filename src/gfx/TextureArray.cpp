@@ -2,6 +2,7 @@
 #include <glad/glad.h>
 #include "../util/GLHelper.hpp"
 #include <SDL3_image/SDL_image.h>
+#include <png.h>
 #include <vector>
 
 // Function to crop an SDL surface to a specific region
@@ -37,7 +38,7 @@ TextureArray::TextureArray(const char* path)
     glCall(glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
 
     SDL_Surface* surface = IMG_Load(path);
-    if (surface == nullptr) {
+    if (surface == NULL) {
         std::cerr << "SDL_CreateRGBSurface failed: " << SDL_GetError() << std::endl;
     }
     else {

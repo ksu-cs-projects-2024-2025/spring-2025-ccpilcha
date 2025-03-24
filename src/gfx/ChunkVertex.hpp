@@ -23,7 +23,7 @@ struct ChunkVertex
      * @param blockId 
      * @param faceNum 
      */
-    ChunkVertex(int x, int y, int z, uint blockId, int faceNum)
+    ChunkVertex(int x, int y, int z, unsigned int blockId, int faceNum)
     {
         data = (x & 0b11111) << 27 
             | (y & 0b11111) << 22 

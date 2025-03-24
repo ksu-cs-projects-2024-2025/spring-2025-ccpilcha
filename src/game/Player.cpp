@@ -20,6 +20,7 @@ void Player::Init(GameContext *c, ChunkPos pos)
     movement[3] = false;
     movement[4] = false;
     movement[5] = false;
+    movement[6] = false;
 
     camera.aspect = (float)c->aspectRatio;
     camera.viewport(c->aspectRatio, c->fov);
@@ -34,7 +35,8 @@ void Player::OnEvent(GameContext *c, const SDL_Event *event)
     }
     else if (event->type == SDL_EVENT_MOUSE_MOTION)
     {
-        if (c->isFocused) camera.rotateBy(event->motion.xrel, event->motion.yrel);
+        if (c->isFocused)
+            camera.rotateBy(event->motion.xrel, event->motion.yrel);
     }
     if (event->type == SDL_EVENT_KEY_DOWN || event->type == SDL_EVENT_KEY_UP)
     {

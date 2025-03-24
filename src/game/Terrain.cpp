@@ -5,7 +5,12 @@
 
 Terrain::Terrain() : seed(0)
 {
-	noise = FastNoise::New<FastNoise::Perlin>();
+    noise = FastNoise::New<FastNoise::Perlin>();
+}
+
+Terrain::~Terrain()
+{
+    noise.reset();
 }
 
 std::vector<CHUNK_POS_Z_TYPE> Terrain::generateHeightMap(ChunkPos pos)
