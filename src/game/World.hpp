@@ -8,19 +8,46 @@
 #include "GameContext.hpp"
 #include "Terrain.hpp"
 #include "../gfx/ChunkRenderer.hpp"
-#include "../util/ThreadPool.hpp"
+#include "../util/PriorityThreadPool.hpp"
 #include "Chunk.hpp"
 #include "PrioritizedChunk.hpp"
 #include "ChunkPos.hpp"
 #include "../gfx/Ray.hpp"
 
+
+struct BlockFace {
+    glm::ivec3 pos;
+    int face = -1;
+
+    glm::ivec3 getNeighbor()
+    {
+        switch(face){
+        default:
+        case 0:
+            return pos + glm::ivec3({-1,0,0});
+        case 1:
+            return pos + glm::ivec3({ 1,0,0});
+        case 2:
+            return pos + glm::ivec3({0,-1,0});
+        case 3:
+            return pos + glm::ivec3({0, 1,0});
+        case 4:
+            return pos + glm::ivec3({0,0,-1});
+        case 5:
+            return pos + glm::ivec3({0,0, 1});
+        }
+    }
+};
+
 class World {
-    Shader gizmoShader, skyShader;
-    Mesh gizmoMesh, skyMesh;
+    Shader gizmoShader, skyShader, highlightShader;
+    Mesh gizmoMesh, skyMesh, highlightMesh;
     ChunkRenderer renderer;
     Terrain terrain;
-    ThreadPool threadPool;
+    PriorityThreadPool threadPool;
     std::atomic<bool> loadSignal{false};
+    int sX, sY, sZ, sF;
+    // the intention is to build the BFS search order first
     void TraverseRays(GameContext *c);
     void LoadChunks(GameContext *c);
 public:
@@ -28,6 +55,7 @@ public:
     // TODO: make this part of the GameContext?
     // Shared queue and synchronization tools
     std::mutex queueLoadMutex, removeMutex;
+    std::vector<ChunkPos> loadOrder;
     std::condition_variable queueCV;
     tbb::concurrent_queue<PrioritizedChunk> chunkLoadQueue;
     tbb::concurrent_queue<ChunkPos> chunkRemoveQueue;
@@ -45,4 +73,5 @@ public:
     BLOCK_ID_TYPE GetBlockId(const ChunkPos &pos, int x, int y, int z);
     void SetBlockId(const ChunkPos &pos, int x, int y, int z, BLOCK_ID_TYPE id);
     void Render(GameContext *c);
+    BlockFace RayTraversal(Ray ray, double tMin, double tMax);
 };

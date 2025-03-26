@@ -13,10 +13,6 @@
 #include <SDL3_image/SDL_image.h>
 #include <SDL3_ttf/SDL_ttf.h>
 
-#define _CRTDBG_MAP_ALLOC
-#include <stdlib.h>
-#include <crtdbg.h>
-
 #include "util/GLHelper.hpp"
 #include "game/GameEngine.hpp"
 #include "game/GameContext.hpp"
@@ -40,7 +36,6 @@ static int      frameCount = 0; // Keeps track off the nth frame
 // Runs at start up
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
 {
-    _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
     // Instantiate variables
     Uint64 then = SDL_GetPerformanceCounter();
     frequency = SDL_GetPerformanceFrequency();
@@ -119,6 +114,8 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
     glCall(glEnable(GL_DEPTH_TEST));
     glCall(glEnable(GL_CULL_FACE));
     glEnable(GL_DEBUG_OUTPUT);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable( GL_BLEND );
 
 #ifdef G_DEBUG
     std::cout << "Vendor: " << glGetString(GL_VENDOR) << std::endl;
@@ -183,7 +180,6 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 // This function runs once at shutdown.
 void SDL_AppQuit(void *appstate, SDL_AppResult result)
 {
-    _CrtDumpMemoryLeaks();
     // TODO: make sure everything get saved!
     delete game;
     delete context;

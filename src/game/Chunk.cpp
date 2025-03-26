@@ -13,7 +13,7 @@ Chunk::~Chunk()
 
 void Chunk::Init(GameContext *c)
 {
-
+    this->removing.store(false);
 }
 
 bool Chunk::IsEmpty()
@@ -52,6 +52,7 @@ void Chunk::SetBlockId(int x, int y, int z, BLOCK_ID_TYPE id)
 void Chunk::Clear()
 {
     blocks.clear();
+    this->loaded = false;
 }
 
 /**

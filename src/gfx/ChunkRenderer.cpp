@@ -34,7 +34,7 @@ void ChunkRenderer::RenderChunkAt(PrioritizedChunk pChunk)
 	}
 	if (!chunk->dirty) return;
 
-	chunk->inUse.store(true);
+	chunk->rendering.store(true);
 
 	std::vector<ChunkVertex> newVerts;
 
@@ -60,10 +60,11 @@ void ChunkRenderer::RenderChunkAt(PrioritizedChunk pChunk)
 
 	if (!this->chunkMeshes.contains(pos)) {
 		this->chunkMeshes.emplace(pos, std::make_shared<ChunkMesh>());
-	}
+	} else if (this->chunkMeshes.at(pos)->pos != pChunk.pos) return;
 
 	this->chunkMeshes.at(pos)->Load(newVerts);
-	chunk->inUse.store(false);
+	this->chunkMeshes.at(pos)->pos = pos;
+	chunk->rendering.store(false);
 }
 
 void ChunkRenderer::RenderChunks(GameContext *c)
@@ -88,19 +89,22 @@ void ChunkRenderer::RenderChunks(GameContext *c)
 			if (!chunkMeshes.contains(pos))
 			{
 				std::shared_ptr<ChunkMesh> mesh;
+				/*
 				if (!freeMeshes.empty() && freeMeshes.try_pop(mesh))
 				{
-					if (!mesh->IsReusable()) 
+					if (mesh->IsReusable()) 
 					{
 						freeMeshes.push(mesh);
 						this->chunkMeshes.emplace(pos, std::make_shared<ChunkMesh>());
-					} 
+					}
 					else
 						this->chunkMeshes.emplace(pos, mesh);
 				}
-				else 
+				else */
 					this->chunkMeshes.emplace(pos, std::make_shared<ChunkMesh>());
 			}
+			this->chunkMeshes.at(pos)->used = true;
+			this->chunkMeshes.at(pos)->pos = pos;
 			int genID = chunkGenFrameId.load();
 			threadPool.enqueueTask([this, c, pChunk]() {
                 if (c->plr->chunkPos.distance(pChunk.pos) > c->renderDistance * 1.5) return;
@@ -140,18 +144,6 @@ void ChunkRenderer::Update(GameContext *c, double deltaTime)
     // when chunks are modified, their pointer will be placed in a queue in world called "Dirty" to signal that the chunk has been updated
     // new chunk needs to have the same vao used
 
-    for (int i = 0; i < std::min((size_t)10, chunkRemoveQueue.unsafe_size()); i++)
-    {
-        ChunkPos pos;
-        if (!chunkRemoveQueue.try_pop(pos)) return;
-		if (!chunkMeshes.contains(pos)) continue;
-        auto &cptr = chunkMeshes.at(pos);
-        // If it hasn’t finished loading, skip removal (it’ll be retried later)
-        if (!cptr) continue;
-        // Mark for removal and remove the chunk
-        chunkMeshes.at(pos)->Clear();
-		freeMeshes.push(chunkMeshes.at(pos));
-    }
 
 	std::vector<std::shared_ptr<ChunkMesh>> meshes;
 	int init = 0;
@@ -172,6 +164,20 @@ void ChunkRenderer::Update(GameContext *c, double deltaTime)
 		mesh->Init(vao[i], vbo[i]);
 		i++;
 	};
+
+
+    for (int i = 0; i < std::min((size_t)10, chunkRemoveQueue.unsafe_size()); i++)
+    {
+        ChunkPos pos;
+        if (!chunkRemoveQueue.try_pop(pos)) return;
+		if (!chunkMeshes.contains(pos)) continue;
+        auto &cptr = chunkMeshes.at(pos);
+        // If it hasn’t finished loading, skip removal (it’ll be retried later)
+        if (!cptr) continue;
+        // Mark for removal and remove the chunk
+        chunkMeshes.at(pos)->Clear();
+		//freeMeshes.push(chunkMeshes.at(pos));
+    }
 }
 
 // Check if an AABB is inside the frustum

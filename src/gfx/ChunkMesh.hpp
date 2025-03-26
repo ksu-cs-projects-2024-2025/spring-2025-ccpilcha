@@ -23,10 +23,12 @@ protected:
     std::mutex meshMutex; // Protects vertex data
     std::atomic<bool> meshSwapping; // Indicates if the mesh is ready
 public:
-    std::atomic<bool> rendering, isValid;
+    bool used = false;
+    ChunkPos pos;
+    std::atomic<bool> rendering, isUploaded;
     ChunkMesh();
     ~ChunkMesh();
-    bool IsReusable() const { return init; }
+    bool IsReusable() const { return !used; }
     bool isInit() const { return init; }
     void Init(GLuint vao, GLuint vbo);
     void Load(std::vector<ChunkVertex> data);

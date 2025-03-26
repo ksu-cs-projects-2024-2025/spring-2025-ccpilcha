@@ -35,7 +35,7 @@ public:
     // eventually this will store all 15 possible combinations of paths through a chunk.
     // inspiration: https://tomcc.github.io/2014/08/31/visibility-1.html 
     uint16_t visible;
-    std::atomic<bool> loaded{false}, inUse{false}, removing{false};
+    std::atomic<bool> loaded{false}, rendering{false}, removing{false};
 
     Chunk();
     ~Chunk();

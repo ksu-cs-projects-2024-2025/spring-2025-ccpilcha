@@ -87,7 +87,7 @@ void ChunkMesh::UploadToGPU() {
 	glCall(glBindVertexArray(this->vao));
     glBufferData(GL_ARRAY_BUFFER, currentBuffer->size() * sizeof(ChunkVertex),  currentBuffer->data(), GL_DYNAMIC_DRAW);
 	meshSwapping.store(false);
-	isValid = true;
+	isUploaded = true;
 }
 
 /**
@@ -98,7 +98,7 @@ void ChunkMesh::Render()
 {
 	std::lock_guard<std::mutex> lock(this->meshMutex);
 	
-	if (!isValid.load()) return;
+	if (!isUploaded.load()) return;
 	if (this->currentBuffer->empty()) return;
 
 	this->rendering = true;
@@ -111,8 +111,9 @@ void ChunkMesh::Render()
 
 void ChunkMesh::Clear()
 {
-	isValid = false;
+	isUploaded = false;
     if (vbo) glDeleteBuffers(1, &vbo);
     if (vao) glDeleteVertexArrays(1, &vao);
     this->init = false;
+	this->used = false;
 }

@@ -8,6 +8,7 @@
  */
 
 #include "World.hpp"
+#include <unordered_set>
 
 #include <thread>
 
@@ -118,13 +119,77 @@ void World::TraverseRays(GameContext *c)
     {
         Ray ray;
         if (!rays.try_pop(ray)) continue;
-        glm::vec3 step, tMax;
-        step.x = (ray.direction.x >= 0) ? 1 : -1;
-        step.y = (ray.direction.y >= 0) ? 1 : -1;
-        step.z = (ray.direction.z >= 0) ? 1 : -1;
-        
-        // TODO
+        BlockFace block = RayTraversal(ray, 0, c->maxBlockDistance);
+        if (block.face == -1) continue;
+        glm::ivec3 neighbor = block.getNeighbor();
+        this->SetBlockId(ray.originC, neighbor.x, neighbor.y, neighbor.z, 1);
     }
+}
+
+BlockFace World::RayTraversal(Ray ray, double tMin, double tMax)
+{
+    BlockFace block;
+    glm::vec3 ray_start = ray.at(tMin), ray_end = ray.at(tMax);
+    glm::ivec3 curPos, endPos, step;
+    glm::vec3 v_tDelta, v_tMax;
+    // initialization phase
+    for (int i = 0; i < 3; i++)
+    {
+        curPos[i] = floor(ray_start[i]);
+        endPos[i] = floor(ray_end[i]);
+        if (ray.direction[i] > 0) {
+            step[i] = 1;
+            v_tDelta[i] = 1.0 / ray.direction[i];
+            v_tMax[i] = (1 + curPos[i] - ray_start[i]) / ray.direction[i];
+        } 
+        else if (ray.direction[i] < 0) {
+            step[i] = -1;
+            v_tDelta[i] = -1.0 / ray.direction[i];
+            v_tMax[i] = (curPos[i] - ray_start[i]) / ray.direction[i];
+        } 
+        else {
+            step[i] = 0;
+            v_tDelta[i] = tMax;
+            v_tMax[i] = tMax;
+        }
+    }
+    
+    // traversal phase
+    while (curPos.x != endPos.x || curPos.y != endPos.y || curPos.z != endPos.z)
+    {
+        
+        if (v_tMax.x < v_tMax.y && v_tMax.x < v_tMax.z) {
+            // X-axis traversal.
+            curPos.x += step.x;
+            v_tMax.x += v_tDelta.x;
+
+            if (this->GetBlockId(ray.originC, curPos.x, curPos.y, curPos.z) > 0) {
+                block = BlockFace({curPos, (step.x == 1) ? 0 : 1});
+                break;
+            }
+        } else if (v_tMax.y < v_tMax.z) {
+            // Y-axis traversal.
+            curPos.y += step.y;
+            v_tMax.y += v_tDelta.y;
+
+            if (this->GetBlockId(ray.originC, curPos.x, curPos.y, curPos.z) > 0)
+            {
+                block = BlockFace({curPos, (step.y == 1) ? 2 : 3});
+                break;
+            }
+        } else {
+            // Z-axis traversal.
+            curPos.z += step.z;
+            v_tMax.z += v_tDelta.z;
+
+            if (this->GetBlockId(ray.originC, curPos.x, curPos.y, curPos.z) > 0)
+            {
+                block = BlockFace({curPos, (step.z == 1) ? 4 : 5});
+                break;
+            }
+        }
+    }
+    return block;
 }
 
 /**
@@ -158,30 +223,19 @@ void World::LoadChunks(GameContext *c)
         }
 
         // This looping in a radius extending outwards from the centermost chunk.
-        int r = c->renderDistance;
-        for (int dz = r - 1; dz >= -r; dz--) {
-        for (int dy = -r; dy < r; dy++) {
-        for (int dx = -r; dx < r; dx++) {
-            int x = pPos.x + dx, y = pPos.y + dy, z = pPos.z + dz;
+        for (const auto dPos : loadOrder) {
+            int x = pPos.x + dPos.x, y = pPos.y + dPos.y, z = pPos.z + dPos.z;
             ChunkPos nPos({x,y,z});
             // if the chunk is not loaded (not in the hashtable) then we need to create the instance
             if (ChunkReady(nPos)) continue;
 
-
-            if (!freeChunks.empty()) {
-                std::shared_ptr<Chunk> chunk;
-                if (!freeChunks.try_pop(chunk))
-                    this->chunks[nPos] = std::make_shared<Chunk>();
-                else
-                    this->chunks[nPos] = chunk;
-            }
-            else
+            if (!this->chunks.contains(nPos))
                 this->chunks[nPos] = std::make_shared<Chunk>();
             this->chunks.at(nPos)->pos = nPos;
             this->chunks.at(nPos)->Init(c);
-            int genID = renderer.chunkGenFrameId.load();
-            threadPool.enqueueTask([this, c, pPos, nPos]() {
-                if (c->plr->chunkPos.distance(nPos) > c->renderDistance * 1.5) return;
+            Task task;
+            task.priority = (float)nPos.distance(pPos);
+            task.func = [this, c, pPos, nPos]() {
                 if (ChunkReady(nPos)) {
                     this->chunks.at(nPos)->visible = this->terrain.getVisibilityFlags(nPos);
                     std::vector<CHUNK_DATA> data = this->terrain.generateChunk(nPos);            
@@ -199,8 +253,9 @@ void World::LoadChunks(GameContext *c)
                         return;
                     }
                 }
-            });
-        }}}
+            };
+            threadPool.enqueueTask(task);
+        }
     }
 }
 
@@ -210,7 +265,8 @@ World::World() :
     renderer(this),
     threadPool(16),
     gizmoShader("assets/shaders/gizmo.v.glsl", "assets/shaders/gizmo.f.glsl"),
-	skyShader("assets/shaders/sky.v.glsl", "assets/shaders/sky.f.glsl")
+	skyShader("assets/shaders/sky.v.glsl", "assets/shaders/sky.f.glsl"),
+	highlightShader("assets/shaders/highlight.v.glsl", "assets/shaders/highlight.f.glsl")
 {
 	
 }
@@ -222,6 +278,22 @@ World::World() :
  */
 void World::Init(GameContext *c)
 {
+    // Run this algorithm once
+    std::unordered_set<ChunkPos> checkPos;
+    int r = c->renderDistance;
+    for (int dr = 0; dr < r; dr++) {
+    for (int dz = -dr; dz < dr; dz++) {
+    for (int dy = -dr; dy < dr; dy++) {
+    for (int dx = -dr; dx < dr; dx++) {
+        ChunkPos nPos({dx,dy,dz});
+        if (checkPos.contains(nPos)) continue;
+        loadOrder.push_back(nPos);
+        checkPos.insert(nPos);
+    }
+    }
+    }
+    }
+
     terrain.seed = c->seed;
     renderer.Init(c);
     this->chunks.reserve(10000);
@@ -236,7 +308,7 @@ void World::OnEvent(GameContext *c, const SDL_Event *event)
     {
         if (event->button.button == SDL_BUTTON_LEFT)
         {
-            rays.emplace(Ray(c->plr->pos, c->plr->camera.forward));
+            rays.emplace(Ray(c->plr->pos, c->plr->camera.forward, c->plr->chunkPos));
         }
     }
 }
@@ -266,20 +338,21 @@ void World::Update(GameContext *c, double deltaTime)
             loadSignal = true;
         }
         queueCV.notify_all();
+        std::cout << "\r" << c->plr->chunkPos;
+        std::cout.flush();
     }
 
-    for (int i = 0; i < std::min((size_t)10, chunkRemoveQueue.unsafe_size()); i++)
+    for (int i = 0; i < chunkRemoveQueue.unsafe_size(); i++)
     {
         ChunkPos pos;
         if (!chunkRemoveQueue.try_pop(pos)) return;
-        std::lock_guard<std::mutex> lock(removeMutex);
+        if (pos.distance(c->plr->chunkPos) <= c->renderDistance * 1.5) continue;
         auto &cptr = chunks.at(pos);
         // If it hasn’t finished loading, skip removal (it’ll be retried later)
-        if (!cptr || !cptr->loaded.load())
+        if (!cptr || !cptr->loaded.load() || !cptr->removing.load())
             continue;
         // Mark for removal and remove the chunk
         cptr->Clear();
-        freeChunks.push(cptr);
         cptr->removing.store(false);
     }
 
@@ -308,6 +381,21 @@ void World::Render(GameContext *c)
 
     // RENDER WORLD
     renderer.Render(c);
+
+    // RENDER HIGHLIGHT
+    BlockFace selected = RayTraversal(Ray(c->plr->pos, c->plr->camera.forward, c->plr->chunkPos), 0, c->maxBlockDistance);
+    if (selected.face != -1)
+    {  
+        highlightShader.use();
+        highlightShader.setMat4("model", glm::mat4(1.0f));
+        highlightShader.setMat4("projection", c->plr->camera.proj);
+        highlightShader.setMat4("view", c->plr->camera.view);
+        highlightShader.setInt("x", selected.pos.x);
+        highlightShader.setInt("y", selected.pos.y);
+        highlightShader.setInt("z", selected.pos.z);
+        highlightShader.setInt("face", selected.face);
+        highlightMesh.RenderInstanceAuto(GL_TRIANGLE_STRIP, 4, 1);
+    }
 
     // RENDER GIZMO
     glDisable(GL_DEPTH_TEST);
