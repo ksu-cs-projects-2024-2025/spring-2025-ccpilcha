@@ -1,0 +1,8 @@
+{
+  "environments": [
+    {
+      "VCPKG_ROOT": "/Users/cameronpilchard/vcpkg",
+      "VCPKG_OS": "arm64-osx"
+    }
+  ]
+}

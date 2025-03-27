@@ -88,9 +88,6 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
     SDL_SetWindowResizable(window, true);
     SDL_SetWindowMinimumSize(window, 200, 200);
 
-    // We will want the mouse to be "grabbed"
-    SDL_SetWindowRelativeMouseMode(window, true);
-
     // Now, we need to prepare for OpenGL rendering on the window
     SDL_GLContext G_OpenGL_CONTEXT = SDL_GL_CreateContext(window);
     if (!G_OpenGL_CONTEXT) {
@@ -111,9 +108,6 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
     
     // Now we can start using OpenGL
     glViewport(0, 0, 800, 600);
-    glCall(glEnable(GL_DEPTH_TEST));
-    glCall(glEnable(GL_CULL_FACE));
-    glEnable(GL_DEBUG_OUTPUT);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable( GL_BLEND );
 

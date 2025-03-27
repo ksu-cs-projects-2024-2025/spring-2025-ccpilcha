@@ -264,9 +264,9 @@ World::World() :
     chunks(), 
     renderer(this),
     threadPool(16),
-    gizmoShader("assets/shaders/gizmo.v.glsl", "assets/shaders/gizmo.f.glsl"),
-	skyShader("assets/shaders/sky.v.glsl", "assets/shaders/sky.f.glsl"),
-	highlightShader("assets/shaders/highlight.v.glsl", "assets/shaders/highlight.f.glsl")
+    gizmoShader("assets/shaders/game/gizmo.v.glsl", "assets/shaders/game/gizmo.f.glsl"),
+	skyShader("assets/shaders/game/sky.v.glsl", "assets/shaders/game/sky.f.glsl"),
+	highlightShader("assets/shaders/game/highlight.v.glsl", "assets/shaders/game/highlight.f.glsl")
 {
 	
 }
@@ -352,7 +352,7 @@ void World::Update(GameContext *c, double deltaTime)
         if (!cptr || !cptr->loaded.load() || !cptr->removing.load())
             continue;
         // Mark for removal and remove the chunk
-        cptr->Clear();
+        //cptr->Clear();
         cptr->removing.store(false);
     }
 
@@ -373,6 +373,7 @@ bool World::ChunkLoaded(const ChunkPos &pos)
 void World::Render(GameContext *c)
 {
     // RENDER SKY
+    glCall(glDisable(GL_DEPTH_TEST));
     glDisable(GL_CULL_FACE);
     skyShader.use();
 	skyShader.setMat4("projection", c->plr->camera.proj);

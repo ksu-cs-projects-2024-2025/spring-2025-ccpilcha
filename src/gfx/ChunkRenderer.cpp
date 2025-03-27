@@ -117,7 +117,7 @@ void ChunkRenderer::RenderChunks(GameContext *c)
 
 ChunkRenderer::ChunkRenderer(World *w) : 
 	world(w), 
-	chunkShader("assets/shaders/chunk.v.glsl", "assets/shaders/chunk.f.glsl"), 
+	chunkShader("assets/shaders/game/chunk.v.glsl", "assets/shaders/game/chunk.f.glsl"), 
 	chunkMeshes(), 
 	threadPool(16)
 {

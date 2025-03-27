@@ -44,7 +44,7 @@ struct GameContext {
         fov(90.0f), 
         yawSensitivity(0.1f), 
         pitchSensitivity(0.1f), 
-        texture("assets/texturepack-simple.png") // TODO: i want all these variables to come from a config file
+        texture("assets/textures/texturepack-simple.png") // TODO: i want all these variables to come from a config file
     {
         plr = nullptr;
         world = nullptr;
