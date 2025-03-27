@@ -17,11 +17,13 @@ void GUI::Init(GameContext *c, std::vector<GUIelem> elements)
 
 void GUI::OnEvent(GameContext *c, const SDL_Event *event)
 {
+    int w, h;
+    SDL_GetWindowSize(c->window, &w, &h);
     if (event->type == SDL_EVENT_MOUSE_MOTION)
     {
         for (auto &elem : elements)
         {
-            if (elem.isInside(glm::vec2(event->motion.x, event->motion.y)))
+            if (elem.isInside(glm::vec2(event->motion.x, h-event->motion.y)))
             {
                 elem.hover = true;
             }
@@ -31,7 +33,7 @@ void GUI::OnEvent(GameContext *c, const SDL_Event *event)
     {
         for (auto &elem : elements)
         {
-            if (elem.isInside(glm::vec2(event->motion.x, event->motion.y)))
+            if (elem.isInside(glm::vec2(event->motion.x, h-event->motion.y)))
             {
                 elem.action();
             }
