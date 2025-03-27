@@ -175,7 +175,7 @@ void ChunkRenderer::Update(GameContext *c, double deltaTime)
         // If it hasn’t finished loading, skip removal (it’ll be retried later)
         if (!cptr) continue;
         // Mark for removal and remove the chunk
-        chunkMeshes.at(pos)->Clear();
+        //chunkMeshes.at(pos)->Clear();
 		//freeMeshes.push(chunkMeshes.at(pos));
     }
 }

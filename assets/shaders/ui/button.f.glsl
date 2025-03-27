@@ -6,6 +6,10 @@ uniform float borderWidth;
 uniform vec4 mainColor; 
 uniform vec4 highlightColor; 
 uniform vec4 shadowColor; 
+
+uniform bool isHover;
+uniform bool isClicked;
+
 out vec4 fragColor;
 
 void main() {
@@ -13,25 +17,23 @@ void main() {
     vec2 absDist = abs(relCoord);                  // Distance from center
     vec2 edgeDist = radius - absDist;             // Distance from edge
 
-    bool isInsideBorder = edgeDist.x > borderWidth && edgeDist.y > borderWidth;
+    bool isInside = edgeDist.x > borderWidth && edgeDist.y > borderWidth;
 
-    if (isInsideBorder) {
-        fragColor = vec4(mainColor);               // Fill
+    int color;
+    if (isInside) {
+        color = int(isClicked);
     } else {
-        vec2 borderPos = (absDist - (radius - borderWidth)) / borderWidth;
-
-        if (borderPos.x > borderPos.y)
-            fragColor = vec4(highlightColor);
-        else
-            fragColor = vec4(shadowColor);
+        // Which edge are we closer to?
+        if (edgeDist.x < edgeDist.y) {
+            // Closer to LEFT or RIGHT
+            color = (relCoord.x > 0.0) ? 2 : int(!isClicked);
+        } else {
+            // Closer to TOP or BOTTOM
+            color = (relCoord.y < 0.0) ? 2 : int(!isClicked);
+        }
     }
 
-    // Sample the button background texture
-    //vec4 buttonColor = texture(buttonTexture, fragTexCoord);
-
-    // Sample the text texture (assumes text is white on transparent background)
-    //vec4 textColor = texture(textTexture, fragTexCoord);
-
-    // Combine the button and text colors
-    //fragColor = mix(buttonColor, textColor, textColor.a); // Blend text based on alpha
+    if (color == 0) fragColor = mainColor;
+    if (color == 1) fragColor = highlightColor;
+    if (color == 2) fragColor = shadowColor;
 }

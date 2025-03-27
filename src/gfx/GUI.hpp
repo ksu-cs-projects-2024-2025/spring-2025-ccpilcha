@@ -20,7 +20,7 @@ struct GUIelem {
 
     std::function<void()> action;
 
-    bool hover, select;
+    bool hover = false, select = false;
 
     void hovering() {
         hover |= hover;
