@@ -1,7 +1,6 @@
 # CREDIT: GITHUB COPILOT WAS USED TO HELP GENERATE THIS CMAKE FILE
 
 cmake_minimum_required(VERSION 3.5)
-set(CMAKE_TOOLCHAIN_FILE "/Users/cameronpilchard/vcpkg/scripts/buildsystems/vcpkg.cmake")
 project(main)
 
 # Set the C++ standard
@@ -15,7 +14,6 @@ add_definitions(-D_LIBCPP_ENABLE_INCOMPLETE_FEATURES)
 
 # Set the name of the executable
 set(EXECUTABLE_NAME ${PROJECT_NAME})
-include("/Users/cameronpilchard/vcpkg/scripts/buildsystems/vcpkg.cmake")
 
 # the following are installed via vcpkg
 find_package(Stb REQUIRED)
@@ -34,7 +32,7 @@ add_executable(${EXECUTABLE_NAME})
 
 # Link everything to your project
 target_link_libraries(${EXECUTABLE_NAME} SDL3::SDL3-static SDL3_image::SDL3_image-static SDL3_ttf::SDL3_ttf-static glad::glad glm::glm-header-only TBB::tbb FastNoise2 nlohmann_json::nlohmann_json)
-target_include_directories(${EXECUTABLE_NAME} PRIVATE "C:/Users/cameronpilchard/vcpkg/installed/arm64-osx/include" ${Stb_INCLUDE_DIR})
+target_include_directories(${EXECUTABLE_NAME} PRIVATE ${Stb_INCLUDE_DIR})
 
 add_custom_target(assets
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_LIST_DIR}/assets ${CMAKE_BINARY_DIR}/assets
