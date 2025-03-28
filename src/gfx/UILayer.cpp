@@ -1,21 +1,21 @@
-#include "GUI.hpp"
+#include "UILayer.hpp"
 
-GUI::GUI() :
+UILayer::UILayer() :
+    textRenderer(),
     guiShader("assets/shaders/ui/button.v.glsl", "assets/shaders/ui/button.f.glsl")
 {
 }
 
-GUI::~GUI()
+UILayer::~UILayer()
 {
 }
 
-void GUI::Init(GameContext *c, std::vector<GUIelem> elements)
+void UILayer::Init(GameContext *c, std::vector<UIComponent> elements)
 {
     this->elements = std::move(elements);
-
 }
 
-void GUI::OnEvent(GameContext *c, const SDL_Event *event)
+void UILayer::OnEvent(GameContext *c, const SDL_Event *event)
 {
     int w, h;
     SDL_GetWindowSize(c->window, &w, &h);
@@ -43,11 +43,12 @@ void GUI::OnEvent(GameContext *c, const SDL_Event *event)
     }
 }
 
-void GUI::Update(GameContext *c, double deltaTime)
+void UILayer::Update(GameContext *c, double deltaTime)
 {
+    textRenderer.Update(c, deltaTime);
 }
 
-void GUI::Render(GameContext *c)
+void UILayer::Render(GameContext *c)
 {
     glCall(glDisable(GL_DEPTH_TEST));
     glCall(glDisable(GL_CULL_FACE));
@@ -66,4 +67,5 @@ void GUI::Render(GameContext *c)
         guiShader.setBool("isClicked", elem.select);
         guiMesh.RenderInstanceAuto(GL_TRIANGLE_STRIP, 4, 1);
     }
+    textRenderer.Render(c);
 }

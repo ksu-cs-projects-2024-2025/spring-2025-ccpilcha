@@ -18,12 +18,14 @@ set(EXECUTABLE_NAME ${PROJECT_NAME})
 include("/Users/cameronpilchard/vcpkg/scripts/buildsystems/vcpkg.cmake")
 
 # the following are installed via vcpkg
+find_package(Stb REQUIRED)
 find_package(SDL3 CONFIG REQUIRED)
 find_package(SDL3_image CONFIG REQUIRED)
 find_package(SDL3_ttf CONFIG REQUIRED)
 find_package(glad CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(TBB CONFIG REQUIRED)
+find_package(nlohmann_json CONFIG REQUIRED)
 
 # not available in vcpkg
 add_subdirectory(modules/FastNoise)
@@ -31,8 +33,8 @@ add_subdirectory(modules/FastNoise)
 add_executable(${EXECUTABLE_NAME})
 
 # Link everything to your project
-target_link_libraries(${EXECUTABLE_NAME} SDL3::SDL3-static SDL3_image::SDL3_image-static SDL3_ttf::SDL3_ttf-static glad::glad glm::glm-header-only TBB::tbb FastNoise2)
-target_include_directories(${EXECUTABLE_NAME} PRIVATE "C:/Users/cameronpilchard/vcpkg/installed/arm64-osx/include")
+target_link_libraries(${EXECUTABLE_NAME} SDL3::SDL3-static SDL3_image::SDL3_image-static SDL3_ttf::SDL3_ttf-static glad::glad glm::glm-header-only TBB::tbb FastNoise2 nlohmann_json::nlohmann_json)
+target_include_directories(${EXECUTABLE_NAME} PRIVATE "C:/Users/cameronpilchard/vcpkg/installed/arm64-osx/include" ${Stb_INCLUDE_DIR})
 
 add_custom_target(assets
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_LIST_DIR}/assets ${CMAKE_BINARY_DIR}/assets

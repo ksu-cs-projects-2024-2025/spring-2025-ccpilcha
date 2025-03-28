@@ -29,7 +29,7 @@ void Mesh::SetAttributes(std::vector<VertexAttribute> attributes)
     int i = 0;
     for (auto &attribute : attributes)
     {
-        attribute.enable(i++);
+        attribute.Enable(i++);
     }
 }
 

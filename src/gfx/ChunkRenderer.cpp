@@ -105,9 +105,7 @@ void ChunkRenderer::RenderChunks(GameContext *c)
 			}
 			this->chunkMeshes.at(pos)->used = true;
 			this->chunkMeshes.at(pos)->pos = pos;
-			int genID = chunkGenFrameId.load();
 			threadPool.enqueueTask([this, c, pChunk]() {
-                if (c->plr->chunkPos.distance(pChunk.pos) > c->renderDistance * 1.5) return;
 				// it is still possible for the taskid to increment afterwards, but this shouldn't be of much issue
 				this->RenderChunkAt(pChunk);
 			});
@@ -214,10 +212,10 @@ void ChunkRenderer::Render(GameContext *c)
 {
 	glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
-	c->texture.use(GL_TEXTURE0);
+	c->texture.use(GL_TEXTURE1);
 	
 	chunkShader.use(); // we are using the same shader each time
-	chunkShader.setInt("textureAtlas", 0);
+	chunkShader.setInt("textureAtlas", 1);
 	chunkShader.setMat4("projection", c->plr->camera.proj);
 	chunkShader.setMat4("view", c->plr->camera.view);
 	chunkShader.setFloat("opacity", 1.0f);

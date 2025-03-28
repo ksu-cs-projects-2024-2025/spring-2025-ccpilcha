@@ -30,7 +30,6 @@ void Player::OnEvent(GameContext *c, const SDL_Event *event)
 {
     if (event->type == SDL_EVENT_WINDOW_RESIZED)
     {
-        c->aspectRatio = (float) event->window.data1 / (float) event->window.data2;
         camera.viewport(c->aspectRatio, c->fov);
     }
     else if (event->type == SDL_EVENT_MOUSE_MOTION)

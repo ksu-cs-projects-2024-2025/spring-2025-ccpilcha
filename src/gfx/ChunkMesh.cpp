@@ -36,7 +36,7 @@ void ChunkMesh::Init(GLuint vao, GLuint vbo)
 	int num = 0;
 	for (auto& vAttrib : ChunkVertexAttribs)
 	{
-		vAttrib.enable(num++);
+		vAttrib.Enable(num++);
 	}
 }
 

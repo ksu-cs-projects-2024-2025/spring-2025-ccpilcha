@@ -22,6 +22,7 @@ struct GameContext {
     Player *plr;
     World *world;
     float fov;
+    int width, height;
     float aspectRatio;
     float yawSensitivity;
     float pitchSensitivity;
@@ -60,6 +61,6 @@ struct GameContext {
         right = SDLK_D;
         up = SDLK_SPACE;
         down = SDLK_LSHIFT;
-        sprint = SDLK_LCTRL;
+        sprint = SDLK_LALT;
     }
 };

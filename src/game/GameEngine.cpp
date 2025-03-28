@@ -10,7 +10,7 @@ gui()
     // TODO: make this work off of a json or yaml. imports all the stuff necessary
     int w, h;
     SDL_GetWindowSize(c->window, &w, &h);
-    GUIelem startButton;
+    UIComponent startButton;
     startButton.text = "PLAY";
     startButton.origin = glm::vec2(w/2, h/2);
     startButton.radius = glm::vec2(200.f, 50.f);
@@ -29,6 +29,8 @@ GameEngine::~GameEngine()
 }
 
 SDL_AppResult GameEngine::Init() {
+
+
     return this->ChangeState();
 }
 

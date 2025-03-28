@@ -2,7 +2,8 @@
 
 #include "GameContext.hpp"
 #include "Player.hpp"
-#include "gfx/GUI.hpp"
+#include "gfx/UIComponent.hpp"
+#include "gfx/UILayer.hpp"
 #include "GameState.hpp"
 
 class World;
@@ -10,8 +11,8 @@ class World;
 class GameEngine
 {
     GameState state = GameState::MENU, newState = GameState::MENU;
-    GUI gui;
-    std::vector<GUIelem> menuGUI, playGUI;
+    UILayer gui;
+    std::vector<UIComponent> menuGUI, playGUI;
     GameContext *context;
     World *world;
     Player plr;

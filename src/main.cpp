@@ -1,5 +1,8 @@
 
 
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
+
 #define SDL_MAIN_USE_CALLBACKS 1
 #define G_DEBUG
 #include <string>
@@ -68,6 +71,10 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
 
+        // Before context creation (example using SDL):
+    SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
+    SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 4); // Try 4 or 8
+
     SDL_SetHint(SDL_HINT_RENDER_VSYNC, "0");
     // 0 disables V-Sync in SDL
     // TODO: should we allow V-Sync as a configuration?
@@ -107,6 +114,9 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
     SDL_SetCurrentThreadPriority(SDL_THREAD_PRIORITY_HIGH);
     
     // Now we can start using OpenGL
+
+    // After OpenGL context is created:
+    //glEnable(GL_MULTISAMPLE);
     glViewport(0, 0, 800, 600);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable( GL_BLEND );
@@ -123,6 +133,8 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
     // By default, we need to direct the game context towards the current window.
     // We also need to declare the aspect ratio so we can properly calculate the projection matrix
     context->window = window;
+    context->width = 800;
+    context->height = 600;
     context->aspectRatio = 800/600.f;
 
 // START ENGINE!
@@ -141,6 +153,9 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
 
     // Allow the OpenGL viewport to automatically resize with respect to the window
     if (event->type == SDL_EVENT_WINDOW_RESIZED){ 
+        context->width = event->window.data1;
+        context->height = event->window.data2;
+        context->aspectRatio = (float) event->window.data1 / (float) event->window.data2;
         glViewport(0, 0, event->window.data1, event->window.data2);
     }
     
