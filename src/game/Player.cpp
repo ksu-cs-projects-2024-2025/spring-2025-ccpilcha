@@ -49,6 +49,12 @@ void Player::OnEvent(GameContext *c, const SDL_Event *event)
         else if (key == c->up)          movement[4] = isPressed;
         else if (key == c->down)        movement[5] = isPressed;
         else if (key == c->sprint)      movement[6] = isPressed;
+
+        if (key == SDLK_1) cursor = 1;
+        if (key == SDLK_2) cursor = 2;
+        if (key == SDLK_3) cursor = 3;
+        if (key == SDLK_4) cursor = 4;
+        if (key == SDLK_5) cursor = 5;
     }
 }
 

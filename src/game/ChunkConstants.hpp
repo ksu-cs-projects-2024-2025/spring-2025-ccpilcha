@@ -1,5 +1,5 @@
 
-#define BLOCK_ID_TYPE uint8_t
+#define BLOCK_ID_TYPE uint16_t
 #define CHUNK_X_SIZE 32
 #define CHUNK_Y_SIZE 32
 #define CHUNK_Z_SIZE 32

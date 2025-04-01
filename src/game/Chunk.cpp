@@ -1,6 +1,7 @@
 #include "Chunk.hpp"
 #include <math.h>
 #include <ostream>
+#include <array>
 
 Chunk::Chunk() : blocks()
 {
@@ -66,4 +67,70 @@ glm::vec3 Chunk::remainder(glm::vec3 input)
     ChunkPos q{(int64_t)floor(input.x / CHUNK_X_SIZE), (int64_t)floor(input.y / CHUNK_Y_SIZE), (int64_t)floor(input.z / CHUNK_Z_SIZE)};
     glm::vec3 r(input.x - q.x * CHUNK_X_SIZE, input.y - q.y * CHUNK_Y_SIZE, input.z - q.z * CHUNK_Z_SIZE);
     return r;
+}
+
+nlohmann::json Chunk::To_RLE()
+{
+    // TODO: I might consider other ways to further compress the data like switching the axis and comparing size
+    // Maybe even use a palette system
+    //std::ofstream outFile(".data", std::ios::binary | std::ios::app);
+
+    /*  Formatting:
+     * - chunkPos
+     * - z layer count
+     * - block stuff
+     * - (OPTIONAL) pad with date?
+     */
+    nlohmann::json json; // for now I will do json
+    json["x"] = this->pos.x;
+    json["y"] = this->pos.y;
+    json["z"] = this->pos.z;
+    json["z-layers"] = blocks.size();
+
+    BLOCK_ID_TYPE blockId;
+    uint16_t count = 0;
+    if (blocks.size() > 0) blockId = blocks[0][0][0];
+    for (int z = 0; z < blocks.size(); z++) {
+    for (int y = 0; y < CHUNK_Y_SIZE; y++) {
+    for (int x = 0; x < CHUNK_X_SIZE; x++)
+    {
+        BLOCK_ID_TYPE newId = blocks[z][y][x];
+        if (blockId != newId) {
+            json["data"].push_back({count, blockId});
+            count = 1;
+            blockId = newId;
+        } else {
+            count++;
+        }
+    }}}
+    json["data"].push_back({count, blockId});
+
+    return json;
+}
+
+void Chunk::Load_RLE(nlohmann::json rle)
+{
+    blocks.clear();
+    blocks.resize(rle["z-layers"]);
+
+    int index = 0;
+    for (const auto& pair : rle["data"]) {
+        int count = pair[0];
+        int blockId = pair[1];
+
+        for (int i = 0; i < count; i++) {
+            int z = index / (CHUNK_Y_SIZE * CHUNK_X_SIZE);
+            int y = (index / CHUNK_X_SIZE) % CHUNK_Y_SIZE;
+            int x = index % CHUNK_X_SIZE;
+
+            if (z >= CHUNK_Z_SIZE) {
+                throw std::runtime_error("RLE overflow: too many blocks!");
+            }
+
+            blocks[z][y][x] = blockId;
+            index++;
+        }
+    }
+    this->dirty = true;
+    this->loaded = true;
 }

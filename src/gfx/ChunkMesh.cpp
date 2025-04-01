@@ -2,9 +2,9 @@
 #include <iostream>
 #include <vector>
 
+#include "game/World.hpp"
+#include "util/GLHelper.hpp"
 #include "ChunkMesh.hpp"
-#include "World.hpp"
-#include "GLHelper.hpp"
 
 std::vector<VertexAttribute> ChunkVertexAttribs = {
 	{1, GL_UNSIGNED_INT, GL_FALSE, sizeof(ChunkVertex), 0, 1}
@@ -22,8 +22,8 @@ ChunkMesh::~ChunkMesh()
 {
     std::lock_guard<std::mutex> lock(meshMutex);
 
-    if (vbo) glDeleteBuffers(1, &vbo);
-    if (vao) glDeleteVertexArrays(1, &vao);
+    if (vbo) glCall(glDeleteBuffers(1, &vbo));
+    if (vao) glCall(glDeleteVertexArrays(1, &vao));
 }
 
 void ChunkMesh::Init(GLuint vao, GLuint vbo)
@@ -47,6 +47,8 @@ void ChunkMesh::Load(std::vector<ChunkVertex> data) {
 		bufferA = std::move(data);
 	else 
 		bufferB = std::move(data);
+
+	loaded.store(true);
 
 	meshSwapping.store(true);
 }
@@ -85,7 +87,7 @@ void ChunkMesh::UploadToGPU() {
 
 	glCall(glBindBuffer(GL_ARRAY_BUFFER, this->vbo));
 	glCall(glBindVertexArray(this->vao));
-    glBufferData(GL_ARRAY_BUFFER, currentBuffer->size() * sizeof(ChunkVertex),  currentBuffer->data(), GL_DYNAMIC_DRAW);
+    glCall(glBufferData(GL_ARRAY_BUFFER, currentBuffer->size() * sizeof(ChunkVertex),  currentBuffer->data(), GL_DYNAMIC_DRAW));
 	meshSwapping.store(false);
 	isUploaded = true;
 }
@@ -112,8 +114,9 @@ void ChunkMesh::Render()
 void ChunkMesh::Clear()
 {
 	isUploaded = false;
-    if (vbo) glDeleteBuffers(1, &vbo);
-    if (vao) glDeleteVertexArrays(1, &vao);
+    if (vbo) glCall(glDeleteBuffers(1, &vbo));
+    if (vao) glCall(glDeleteVertexArrays(1, &vao));
     this->init = false;
 	this->used = false;
+	this->loaded.store(false);
 }

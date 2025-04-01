@@ -1,11 +1,10 @@
 
 #include <glm/glm.hpp>
 
+#include "game/World.hpp"
 #include "ChunkRenderer.hpp"
-#include "ChunkMesh.hpp"
-
 #include "Plane.hpp"
-#include "World.hpp"
+#include "ChunkMesh.hpp"
 
 // Neighbor offsets as (x, y, z) tuples
 constexpr int8_t nOffsets[6][3] = {
@@ -75,7 +74,9 @@ void ChunkRenderer::RenderChunks(GameContext *c)
     {
         {
             std::unique_lock<std::mutex> lock(queueRenderMutex);
-            queueCV.wait(lock, [this] { return !chunkRenderQueue.empty(); });
+            queueCV.wait(lock, [this, c] { return !c->isClosing || !chunkRenderQueue.empty(); });
+
+			if (c->isClosing) return;
         }
 
         PrioritizedChunk pChunk;
@@ -105,7 +106,7 @@ void ChunkRenderer::RenderChunks(GameContext *c)
 			}
 			this->chunkMeshes.at(pos)->used = true;
 			this->chunkMeshes.at(pos)->pos = pos;
-			threadPool.enqueueTask([this, c, pChunk]() {
+			threadPool->enqueueTask([this, c, pChunk]() {
 				// it is still possible for the taskid to increment afterwards, but this shouldn't be of much issue
 				this->RenderChunkAt(pChunk);
 			});
@@ -117,20 +118,27 @@ ChunkRenderer::ChunkRenderer(World *w) :
 	world(w), 
 	chunkShader("assets/shaders/game/chunk.v.glsl", "assets/shaders/game/chunk.f.glsl"), 
 	chunkMeshes(), 
-	threadPool(16)
+	threadPool(std::make_unique<ThreadPool>(16)),
+	threadPoolP(std::make_unique<ThreadPool>(2))
 {
 
 }
 
 ChunkRenderer::~ChunkRenderer()
 {
+	this->loadThread.join();
+    threadPool.reset(); // safely joins threads in ~ThreadPool()
+}
+
+bool ChunkRenderer::IsLoaded(ChunkPos pos)
+{
+	return this->chunkMeshes.contains(pos) && this->chunkMeshes.at(pos)->IsLoaded();
 }
 
 void ChunkRenderer::Init(GameContext *c)
 {
 
-    std::thread thr(&ChunkRenderer::RenderChunks, this, c);
-    thr.detach();
+    this->loadThread = std::thread(&ChunkRenderer::RenderChunks, this, c);
 
 }
 
@@ -210,8 +218,8 @@ bool isChunkVisible(const std::array<Plane, 6>& frustum, const glm::vec3& minCor
 
 void ChunkRenderer::Render(GameContext *c)
 {
-	glEnable(GL_DEPTH_TEST);
-    glEnable(GL_CULL_FACE);
+	glCall(glEnable(GL_DEPTH_TEST));
+    glCall(glEnable(GL_CULL_FACE));
 	c->texture.use(GL_TEXTURE1);
 	
 	chunkShader.use(); // we are using the same shader each time
@@ -236,8 +244,6 @@ void ChunkRenderer::Render(GameContext *c)
 		ChunkPos pos = c->plr->chunkPos + ChunkPos{dx,dy,dz};
 		if (!chunkMeshes.contains(pos)) continue;
 		std::shared_ptr<ChunkMesh> mesh = chunkMeshes.at(pos);
-
-		chunkShader.setInt("LOD", 2);
 		
 		glm::vec3 chunkPos = glm::vec3(
 			pos.x * CHUNK_X_SIZE, 

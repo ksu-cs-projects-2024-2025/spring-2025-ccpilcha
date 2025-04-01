@@ -43,8 +43,9 @@ class World {
     Shader gizmoShader, skyShader, highlightShader;
     Mesh gizmoMesh, skyMesh, highlightMesh;
     ChunkRenderer renderer;
-    Terrain terrain;
-    PriorityThreadPool threadPool;
+    std::shared_ptr<Terrain> terrain;
+    std::thread loadThread;
+    std::unique_ptr<PriorityThreadPool> threadPool;
     std::atomic<bool> loadSignal{false};
     int sX, sY, sZ, sF;
     // the intention is to build the BFS search order first
@@ -56,6 +57,7 @@ public:
     // Shared queue and synchronization tools
     std::mutex queueLoadMutex, removeMutex;
     std::vector<ChunkPos> loadOrder;
+    std::unordered_set<ChunkPos> modified;
     std::condition_variable queueCV;
     tbb::concurrent_queue<PrioritizedChunk> chunkLoadQueue;
     tbb::concurrent_queue<ChunkPos> chunkRemoveQueue;
@@ -70,6 +72,7 @@ public:
     void Update(GameContext *c, double deltaTime);
     bool ChunkReady(const ChunkPos &pos);
     bool ChunkLoaded(const ChunkPos &pos);
+    bool ChunkMeshLoaded(const ChunkPos &pos);
     BLOCK_ID_TYPE GetBlockId(const ChunkPos &pos, int x, int y, int z);
     void SetBlockId(const ChunkPos &pos, int x, int y, int z, BLOCK_ID_TYPE id);
     void Render(GameContext *c);

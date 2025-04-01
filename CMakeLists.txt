@@ -9,6 +9,8 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+enable_testing()
+
 # Enable incomplete features in libc++
 add_definitions(-D_LIBCPP_ENABLE_INCOMPLETE_FEATURES)
 
@@ -24,6 +26,7 @@ find_package(glad CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(TBB CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
+find_package(GTest CONFIG REQUIRED)
 
 # not available in vcpkg
 add_subdirectory(modules/FastNoise)
@@ -38,6 +41,7 @@ add_custom_target(assets
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_LIST_DIR}/assets ${CMAKE_BINARY_DIR}/assets
 )
 add_dependencies(${EXECUTABLE_NAME} assets)
+
 
 # Find all .cpp files automatically
 file(GLOB_RECURSE SRC_FILES "src/*.cpp")
@@ -55,3 +59,9 @@ foreach(dll ${VCPKG_DLLS})
             $<TARGET_FILE_DIR:${EXECUTABLE_NAME}>
     )
 endforeach()
+
+# Add your main source code
+add_subdirectory(src)
+
+# Add test directory
+add_subdirectory(test)

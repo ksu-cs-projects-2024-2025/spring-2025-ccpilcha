@@ -15,6 +15,7 @@
 #include <png.h>
 #include <SDL3_image/SDL_image.h>
 #include <SDL3_ttf/SDL_ttf.h>
+#include <FastNoise/FastNoise.h>
 
 #include "util/GLHelper.hpp"
 #include "game/GameEngine.hpp"
@@ -189,6 +190,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 // This function runs once at shutdown.
 void SDL_AppQuit(void *appstate, SDL_AppResult result)
 {
+    context->isClosing = true;
     // TODO: make sure everything get saved!
     delete game;
     delete context;

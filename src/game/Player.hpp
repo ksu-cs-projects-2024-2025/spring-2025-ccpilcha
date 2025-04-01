@@ -3,14 +3,16 @@
 #include <glm/glm.hpp>
 #include <SDL3/SDL.h>
 
-#include "Camera.hpp"
+#include "gfx/Camera.hpp"
 #include "GameContext.hpp"
 #include "Chunk.hpp"
 
 class Player
 {
     bool movement[7];
+    bool focused = true;
 public:
+    BLOCK_ID_TYPE cursor = 1;
     ChunkPos chunkPos, lastPos;
     glm::dvec3 pos;
     Camera camera;

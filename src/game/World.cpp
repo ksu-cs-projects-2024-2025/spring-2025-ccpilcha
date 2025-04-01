@@ -101,11 +101,14 @@ void World::SetBlockId(const ChunkPos &pos, int x, int y, int z, BLOCK_ID_TYPE i
 
     chunks.at(adjusted)->SetBlockId(x,y,z,id);
 
+    if (this->modified.find(adjusted) == this->modified.end())
+    {
+        this->modified.insert(adjusted);
+    }
+
     renderer.chunkRenderQueue.push({adjusted, std::numeric_limits<float>::lowest()});
     renderer.queueCV.notify_one();
 }
-
-bool gameRunning = true;
 
 /**
  * @brief Implements the J. Amanatides and A. Woo ray tracing algorithm
@@ -122,7 +125,10 @@ void World::TraverseRays(GameContext *c)
         BlockFace block = RayTraversal(ray, 0, c->maxBlockDistance);
         if (block.face == -1) continue;
         glm::ivec3 neighbor = block.getNeighbor();
-        this->SetBlockId(ray.originC, neighbor.x, neighbor.y, neighbor.z, 1);
+        if (ray.dig)
+            this->SetBlockId(ray.originC, block.pos.x, block.pos.y, block.pos.z, 0);
+        else
+            this->SetBlockId(ray.originC, neighbor.x, neighbor.y, neighbor.z, c->plr->cursor);
     }
 }
 
@@ -199,23 +205,50 @@ BlockFace World::RayTraversal(Ray ray, double tMin, double tMax)
  */
 void World::LoadChunks(GameContext *c)
 {
-    // TODO: this thread needs to end when the game exits the playing state
-    while (true)
+    // Here we need to load the modified chunks
+    ChunkPos pPos = c->plr->chunkPos;
+
+    std::ifstream in("chunk.json");
+    if (in.is_open()) {
+
+        nlohmann::json chunkList;
+        in >> chunkList;
+        // for now just save
+        for (const auto& rle : chunkList["chunks"]) {
+            int x = rle["x"];
+            int y = rle["y"];
+            int z = rle["z"];
+            ChunkPos pos({x,y,z});
+            if (!this->chunks.contains(pos)) // not sure how this would be false but whatever
+                this->chunks[pos] = std::make_shared<Chunk>();
+            this->chunks.at(pos)->Load_RLE(rle);
+            this->modified.insert(pos);
+            renderer.chunkRenderQueue.push({pos, 0});
+            renderer.queueCV.notify_one();
+        }
+        
+    }
+
+    while (!c->isClosing)
     {
         {
             std::unique_lock<std::mutex> lock(queueLoadMutex);
-            queueCV.wait(lock, [this, c] { return loadSignal || !gameRunning; });
+            queueCV.wait(lock, [this, c] { return !c->isClosing || loadSignal; });
 
-            if (!gameRunning) return;  // Exit thread when game ends
+            if (c->isClosing) return;  // Exit thread when game ends
 
             loadSignal = false;
         }
 
-        ChunkPos pPos = c->plr->chunkPos;
-        
+        pPos = c->plr->chunkPos;
+
         for (const auto &[pos, cptr]: chunks)
         {
-            if (pos.distance(pPos) > c->renderDistance * 1.5 && cptr->loaded && !cptr->removing) {
+            ChunkPos rel = (pos - pPos);
+            int x = abs(rel.x);
+            int y = abs(rel.y);
+            int z = abs(rel.z);
+            if (x >= c->renderDistance * 1.5 || y >= c->renderDistance * 1.5 || z >= c->renderDistance * 1.5) {
                 cptr->removing = true;
                 chunkRemoveQueue.push(pos);
                 this->renderer.chunkRemoveQueue.push(pos);
@@ -237,9 +270,13 @@ void World::LoadChunks(GameContext *c)
             task.priority = (float)nPos.distance(pPos);
             task.func = [this, c, pPos, nPos]() {
                 if (ChunkReady(nPos)) {
-                    this->chunks.at(nPos)->visible = this->terrain.getVisibilityFlags(nPos);
-                    std::vector<CHUNK_DATA> data = this->terrain.generateChunk(nPos);            
-                    this->chunks.at(nPos)->Load(data);
+                    if (!this->chunks.at(nPos)->loaded.load())
+                    {
+                        std::vector<CHUNK_DATA> data = this->terrain->generateChunk(nPos);            
+                        this->chunks.at(nPos)->visible = this->terrain->getVisibilityFlags(nPos);
+                        this->chunks.at(nPos)->Load(data);
+                        this->chunks.at(nPos)->loaded.store(true); 
+                    }
                     if (this->chunks.at(nPos)->visible == 0) return;
                     if (!this->chunks.at(nPos)->IsEmpty())
                     {
@@ -247,28 +284,27 @@ void World::LoadChunks(GameContext *c)
                         renderer.queueCV.notify_one();
                         // we should then queue another thread responsible for loading chunk vertex data
                     }
-                    this->chunks.at(nPos)->loaded.store(true); 
                     if (this->chunks.at(nPos)->pos != nPos) {
                         std::cerr << "[WARNING] Chunk position mismatch: rendered pos != memory pos!\n";
                         return;
                     }
                 }
             };
-            threadPool.enqueueTask(task);
+            threadPool->enqueueTask(task);
         }
     }
 }
 
 World::World() : 
-    terrain(), 
+    terrain(std::make_shared<Terrain>()), 
     chunks(), 
     renderer(this),
-    threadPool(16),
+    threadPool(std::make_unique<PriorityThreadPool>(16)),
     gizmoShader("assets/shaders/game/gizmo.v.glsl", "assets/shaders/game/gizmo.f.glsl"),
 	skyShader("assets/shaders/game/sky.v.glsl", "assets/shaders/game/sky.f.glsl"),
 	highlightShader("assets/shaders/game/highlight.v.glsl", "assets/shaders/game/highlight.f.glsl")
 {
-	
+
 }
 
 /**
@@ -294,21 +330,25 @@ void World::Init(GameContext *c)
     }
     }
 
-    terrain.seed = c->seed;
+    terrain->seed = c->seed;
     renderer.Init(c);
     this->chunks.reserve(10000);
     // TODO: create thread which works on generating the world
-    std::thread thr(&World::LoadChunks, this, c);
-    thr.detach();
+    this->loadThread = std::thread(&World::LoadChunks, this, c);
 }
 
 void World::OnEvent(GameContext *c, const SDL_Event *event)
 {
     if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN)
     {
+        if (event->button.button == SDL_BUTTON_RIGHT)
+        {
+            rays.emplace(Ray(c->plr->pos, c->plr->camera.forward, c->plr->chunkPos, false));
+        }
+
         if (event->button.button == SDL_BUTTON_LEFT)
         {
-            rays.emplace(Ray(c->plr->pos, c->plr->camera.forward, c->plr->chunkPos));
+            rays.emplace(Ray(c->plr->pos, c->plr->camera.forward, c->plr->chunkPos, true));
         }
     }
 }
@@ -353,7 +393,7 @@ void World::Update(GameContext *c, double deltaTime)
             continue;
         // Mark for removal and remove the chunk
         //cptr->Clear();
-        cptr->removing.store(false);
+        //cptr->removing.store(false);
     }
 
     // needs to be aware of the chunks which are queued for render
@@ -374,17 +414,22 @@ void World::Render(GameContext *c)
 {
     // RENDER SKY
     glCall(glDisable(GL_DEPTH_TEST));
-    glDisable(GL_CULL_FACE);
+    glCall(glDisable(GL_CULL_FACE));
+    glm::mat4 skyview = glm::lookAt(glm::vec3(0.f), c->plr->camera.forward, c->plr->camera.up);
     skyShader.use();
 	skyShader.setMat4("projection", c->plr->camera.proj);
-	skyShader.setMat4("view", glm::lookAt(glm::vec3(0.f), c->plr->camera.forward, c->plr->camera.up));
+	skyShader.setMat4("view", skyview);
+	skyShader.setMat4("u_invProj", glm::inverse(c->plr->camera.proj));
+	skyShader.setMat4("u_invView", glm::inverse(skyview));
+	skyShader.setVec2("u_resolution", glm::vec2(c->width, c->height));
 	skyMesh.RenderInstanceAuto(GL_TRIANGLE_STRIP, 4, 6);
 
+    
     // RENDER WORLD
     renderer.Render(c);
 
     // RENDER HIGHLIGHT
-    BlockFace selected = RayTraversal(Ray(c->plr->pos, c->plr->camera.forward, c->plr->chunkPos), 0, c->maxBlockDistance);
+    BlockFace selected = RayTraversal(Ray(c->plr->pos, c->plr->camera.forward, c->plr->chunkPos, false), 0, c->maxBlockDistance);
     if (selected.face != -1)
     {  
         highlightShader.use();
@@ -399,7 +444,7 @@ void World::Render(GameContext *c)
     }
 
     // RENDER GIZMO
-    glDisable(GL_DEPTH_TEST);
+    glCall(glDisable(GL_DEPTH_TEST));
 	gizmoShader.use();
 	gizmoShader.setMat4("projection", c->plr->camera.proj);
 	gizmoShader.setMat4("view", glm::lookAt(-10.0f * c->plr->camera.forward, glm::vec3(0.f), c->plr->camera.up));
@@ -412,4 +457,19 @@ void World::Render(GameContext *c)
 
 World::~World()
 {
+    nlohmann::json chunkList;
+    chunkList["chunks"] = nlohmann::json::array();
+    // for now just save
+    for (auto &pos : this->modified)
+    {
+        if (!this->chunks.contains(pos))  continue;
+        nlohmann::json rle = this->chunks.at(pos)->To_RLE();
+        chunkList["chunks"].push_back(rle);
+    }
+    std::ofstream out("chunk.json");
+    out << chunkList.dump();
+
+	this->loadThread.join();
+    threadPool.reset(); // safely joins threads in ~ThreadPool()
+    terrain.reset();
 }

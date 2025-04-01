@@ -29,7 +29,7 @@ struct ChunkVertex
             | (y & 0b11111) << 22 
             | (z & 0b11111) << 17 
             | (faceNum & 0b111) << 14 
-            | (blockId & 0x3ff);
+            | (blockId & 0x3fff);
     }
 };
 

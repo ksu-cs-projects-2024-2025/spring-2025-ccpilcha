@@ -18,6 +18,7 @@ class World;
  */
 struct GameContext {
     bool isFocused = true;
+    bool isClosing = false;
     SDL_Window *window;
     Player *plr;
     World *world;

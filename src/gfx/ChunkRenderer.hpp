@@ -17,17 +17,17 @@
 #include <oneapi/tbb/concurrent_priority_queue.h>
 #include <SDL3/SDL.h>
 #include <thread>
+#include <shared_mutex>
 
-#include "../game/GameContext.hpp"
-#include "../util/ThreadPool.hpp"
+#include "game/GameContext.hpp"
+#include "game/PrioritizedChunk.hpp"
+#include "game/ChunkPos.hpp"
+#include "util/ThreadPool.hpp"
 #include "Mesh.hpp"
 #include "VertexAttribute.hpp"
-#include "ChunkPos.hpp"
 #include "ChunkMesh.hpp"
 #include "ChunkVertex.hpp"
-#include "PrioritizedChunk.hpp"
 #include "Shader.hpp"
-#include <shared_mutex>
 
 class World;
 
@@ -38,14 +38,15 @@ class ChunkRenderer
     // this is the shader object for all chunks
     Shader chunkShader;
     // this is the thread worker pool which will process/render chunks
-    ThreadPool threadPool;
+    std::unique_ptr<ThreadPool> threadPool;
+    std::unique_ptr<ThreadPool> threadPoolP;
     tbb::concurrent_unordered_map<ChunkPos, std::shared_ptr<ChunkMesh>> chunkMeshes;
-    
+
+    std::thread loadThread;
 
     World* world;
     void RenderChunkAt(PrioritizedChunk pos);
     void RenderChunks(GameContext *c);
-
 public:
     std::atomic<int> chunkGenFrameId = 0;
     // the render queue is for chunks which are ready to be rendered
@@ -58,6 +59,7 @@ public:
     std::condition_variable queueCV;
     ChunkRenderer(World*);
     ~ChunkRenderer();
+    bool IsLoaded(ChunkPos pos);
     void Init(GameContext *c);
     void Update(GameContext *c, double deltaTime);
     void Render(GameContext *c);

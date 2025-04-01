@@ -29,7 +29,4 @@ void main() {
     // Compute the vertex position
     vec4 pos = projection * viewNoTranslation * vec4(offset, 1.0);
     gl_Position = pos;
-    
-    // Pass the normalized direction vector to the fragment shader.
-    vDirection = offset;
 }

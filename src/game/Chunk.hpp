@@ -19,6 +19,7 @@
 #include <vector>
 #include <glm/glm.hpp>
 #include <mutex>
+#include <nlohmann/json.hpp>
 
 #include "ChunkPos.hpp"
 #include "GameContext.hpp"
@@ -29,6 +30,7 @@ class Chunk
     // the idea here is that we can store the block IDs in a 3D array, but condense along the z-axis
     // if a chunk is empty (air) then this will be empty as well
     std::vector<CHUNK_DATA> blocks;
+    
 public:
     ChunkPos pos;
     bool dirty = true;
@@ -47,4 +49,6 @@ public:
     void SetBlockId(int x, int y, int z, BLOCK_ID_TYPE id);
     void Clear();
     static glm::vec3 remainder(glm::vec3 input);
+    nlohmann::json To_RLE();
+    void Load_RLE(nlohmann::json);
 };

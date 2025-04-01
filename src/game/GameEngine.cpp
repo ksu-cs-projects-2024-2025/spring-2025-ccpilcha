@@ -26,6 +26,7 @@ gui()
 
 GameEngine::~GameEngine()
 {
+    delete world;
 }
 
 SDL_AppResult GameEngine::Init() {

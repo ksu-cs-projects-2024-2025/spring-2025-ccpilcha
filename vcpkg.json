@@ -13,6 +13,7 @@
         "glad",
         "glm",
         "tbb",
-        "nlohmann-json"
+        "nlohmann-json",
+        "gtest"
     ]
   }
