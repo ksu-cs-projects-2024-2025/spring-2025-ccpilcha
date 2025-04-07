@@ -106,10 +106,14 @@ void ChunkRenderer::RenderChunks(GameContext *c)
 			}
 			this->chunkMeshes.at(pos)->used = true;
 			this->chunkMeshes.at(pos)->pos = pos;
-			threadPool->enqueueTask([this, c, pChunk]() {
+			auto task = [this, c, pChunk]() {
 				// it is still possible for the taskid to increment afterwards, but this shouldn't be of much issue
 				this->RenderChunkAt(pChunk);
-			});
+			};
+			if (pChunk.distance < 0)
+				threadPoolP->enqueueTask(task);
+			else
+				threadPool->enqueueTask(task);
 		}
     }
 }
@@ -128,6 +132,7 @@ ChunkRenderer::~ChunkRenderer()
 {
 	this->loadThread.join();
     threadPool.reset(); // safely joins threads in ~ThreadPool()
+	threadPoolP.reset();
 }
 
 bool ChunkRenderer::IsLoaded(ChunkPos pos)

@@ -113,6 +113,8 @@ void Chunk::Load_RLE(nlohmann::json rle)
     blocks.clear();
     blocks.resize(rle["z-layers"]);
 
+    this->pos = ChunkPos({rle["x"], rle["y"], rle["z"]});
+
     int index = 0;
     for (const auto& pair : rle["data"]) {
         int count = pair[0];
