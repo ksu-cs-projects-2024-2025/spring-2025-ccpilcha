@@ -7,7 +7,8 @@
 #include "ChunkMesh.hpp"
 
 std::vector<VertexAttribute> ChunkVertexAttribs = {
-	{1, GL_UNSIGNED_INT, GL_FALSE, sizeof(ChunkVertex), 0, 1}
+	{1, GL_UNSIGNED_INT, GL_FALSE, sizeof(ChunkVertex), 0, 1},
+	{2, GL_UNSIGNED_INT, GL_FALSE, sizeof(ChunkVertex), (GLvoid*)sizeof(uint32_t), 1}
 };
 
 

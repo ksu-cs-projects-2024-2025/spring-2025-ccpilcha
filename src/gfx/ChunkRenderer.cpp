@@ -16,6 +16,53 @@ constexpr int8_t nOffsets[6][3] = {
 	{0, 0, 1}  // +z
 };
 
+const int aoOffsets[6][4][3][3] = {
+    // -X face (left)
+	/*
+	{ // -X
+		{{0,  1,  0}, {0,  0,  1}, {0,  1,  1}},  // v0
+		{{0, -1,  0}, {0,  0,  1}, {0, -1,  1}},  // v1
+		{{0,  1,  0}, {0,  0, -1}, {0,  1, -1}},  // v2
+		{{0, -1,  0}, {0,  0, -1}, {0, -1, -1}},  // v3
+	},	*/
+	{ // -X
+		{{-1,  1,  0}, {-1,  0, -1}, {-1,  1, -1}},
+		{{-1, -1,  0}, {-1,  0, -1}, {-1, -1, -1}},
+		{{-1,  1,  0}, {-1,  0,  1}, {-1,  1,  1}},
+		{{-1, -1,  0}, {-1,  0,  1}, {-1, -1,  1}} 
+	},
+	{ // +X
+		{{ 1, -1,  0}, { 1,  0, -1}, { 1, -1, -1}},
+		{{ 1,  1,  0}, { 1,  0, -1}, { 1,  1, -1}},
+		{{ 1, -1,  0}, { 1,  0,  1}, { 1, -1,  1}},
+		{{ 1,  1,  0}, { 1,  0,  1}, { 1,  1,  1}} 
+	},
+	{ // -Y
+		{{-1, -1,  0}, { 0, -1, -1}, {-1, -1, -1}},
+		{{ 1, -1,  0}, { 0, -1, -1}, { 1, -1, -1}},
+		{{-1, -1,  0}, { 0, -1,  1}, {-1, -1,  1}},
+		{{ 1, -1,  0}, { 0, -1,  1}, { 1, -1,  1}} 
+	},	
+	{ // +Y
+		{{ 1,  1,  0}, { 0,  1, -1}, { 1,  1, -1}},
+		{{-1,  1,  0}, { 0,  1, -1}, {-1,  1, -1}},
+		{{ 1,  1,  0}, { 0,  1,  1}, { 1,  1,  1}},
+		{{-1,  1,  0}, { 0,  1,  1}, {-1,  1,  1}}
+	},
+	{ // -Z
+		{{ 0,  1, -1}, { 1,  0, -1}, { 1,  1, -1}},
+		{{ 0, -1, -1}, { 1,  0, -1}, { 1, -1, -1}},
+		{{ 0,  1, -1}, {-1,  0, -1}, {-1,  1, -1}},
+		{{ 0, -1, -1}, {-1,  0, -1}, {-1, -1, -1}} 
+	},	
+	{ // +Z
+		{{-1,  0,  1}, { 0, -1,  1}, {-1, -1,  1}},
+		{{ 1,  0,  1}, { 0, -1,  1}, { 1, -1,  1}},
+		{{-1,  0,  1}, { 0,  1,  1}, {-1,  1,  1}},
+		{{ 1,  0,  1}, { 0,  1,  1}, { 1,  1,  1}}
+	}
+};
+
 void ChunkRenderer::RenderChunkAt(PrioritizedChunk pChunk)
 {
 	ChunkPos pos = pChunk.pos;
@@ -50,8 +97,31 @@ void ChunkRenderer::RenderChunkAt(PrioritizedChunk pChunk)
 
 			if (this->world->GetBlockId(pos, nx, ny, nz) > 0) continue;
 
+			// now we have to calculate AO
+			uint8_t aoByte = 0;
+
+			for (int corner = 0; corner < 4; ++corner) {
+				bool side1 = this->world->GetBlockId(pos,
+									x + aoOffsets[face][corner][0][0],
+									y + aoOffsets[face][corner][0][1],
+									z + aoOffsets[face][corner][0][2]) > 0;
+
+				bool side2 = this->world->GetBlockId(pos,
+									x + aoOffsets[face][corner][1][0],
+									y + aoOffsets[face][corner][1][1],
+									z + aoOffsets[face][corner][1][2]) > 0;
+
+				bool cornerBlock = this->world->GetBlockId(pos,
+										x + aoOffsets[face][corner][2][0],
+										y + aoOffsets[face][corner][2][1],
+										z + aoOffsets[face][corner][2][2]) > 0;
+
+				uint8_t ao = (side1 && side2) ? 0 : 3 - (side1 + side2 + cornerBlock);
+				aoByte |= (ao << (corner * 2));
+			}
+
 			// Add the face to the mesh
-			newVerts.push_back({ x, y, z, blockId, face });
+			newVerts.push_back({ x, y, z, blockId, face, aoByte });
 		}
 	}
 	}

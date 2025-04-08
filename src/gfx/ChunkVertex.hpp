@@ -12,7 +12,9 @@ struct ChunkVertex
     //	5	TOP		+Z (Z = 1)
     
     // [5 x] [5 y] [5 z] [3 face] [14 id]
-    uint32_t data;
+    // [2 id] [8 AO] [22 extra]
+    // TODO: how should we use the extra space?
+    uint32_t packed0, packed1;
 
     /**
      * @brief Construct a new Chunk Vertex object
@@ -23,13 +25,16 @@ struct ChunkVertex
      * @param blockId 
      * @param faceNum 
      */
-    ChunkVertex(int x, int y, int z, unsigned int blockId, int faceNum)
+    ChunkVertex(int x, int y, int z, unsigned int blockId, int faceNum, int AO)
     {
-        data = (x & 0b11111) << 27 
+        packed0 = (x & 0b11111) << 27 
             | (y & 0b11111) << 22 
             | (z & 0b11111) << 17 
             | (faceNum & 0b111) << 14 
-            | (blockId & 0x3fff);
+            | ((blockId >> 2) & 0x3fff);
+
+        packed1 = (blockId & 0b11) << 30
+            | (AO & 0xFF) << 22; 
     }
 };
 

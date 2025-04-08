@@ -1,5 +1,6 @@
 #version 410 core
-layout (location = 0) in uint data;
+layout (location = 0) in uint packed0;
+layout (location = 1) in uint packed1;
 uvec3 aPos;
 uint aBlockID;
 uint aFace;
@@ -8,6 +9,7 @@ out vec2 TexCoord;
 flat out int BlockID;
 flat out int Face;
 flat out int layer;
+out float vAO;
 
 // Corrected vertex order for triangle strip
 const vec3 vertexOffsets[24] = vec3[24](
@@ -15,9 +17,9 @@ const vec3 vertexOffsets[24] = vec3[24](
     vec3(0, 1, 0), vec3(0, 0, 0), vec3(0, 1, 1), vec3(0, 0, 1),
     // +x face
     vec3(1, 0, 0), vec3(1, 1, 0), vec3(1, 0, 1), vec3(1, 1, 1),
-    // -y face (Bottom)
+    // -y face
     vec3(0, 0, 0), vec3(1, 0, 0), vec3(0, 0, 1), vec3(1, 0, 1),
-    // +y face (Top)
+    // +y face
     vec3(1, 1, 0), vec3(0, 1, 0), vec3(1, 1, 1), vec3(0, 1, 1),
     // -z face
     vec3(1, 1, 0), vec3(1, 0, 0), vec3(0, 1, 0), vec3(0, 0, 0),
@@ -39,11 +41,15 @@ uniform int LOD;
 
 void main()
 {
-    aPos.x = bitfieldExtract(data, 27, 5);
-    aPos.y = bitfieldExtract(data, 22, 5);
-    aPos.z = bitfieldExtract(data, 17, 5);
-    aFace = bitfieldExtract(data, 14, 3);
-    aBlockID = bitfieldExtract(data, 0, 14);
+    aPos.x = bitfieldExtract(packed0, 27, 5);
+    aPos.y = bitfieldExtract(packed0, 22, 5);
+    aPos.z = bitfieldExtract(packed0, 17, 5);
+    aFace = bitfieldExtract(packed0, 14, 3);
+    aBlockID = bitfieldExtract(packed0, 0, 14) << 2 | bitfieldExtract(packed1, 30, 2);
+    uint aoBits = bitfieldExtract(packed1, 22, 8);
+    uint ao = (aoBits >> ((gl_VertexID % 4) * 2)) & 0x3u;
+    vAO = 0.25 + float(ao) * 0.25;
+
     // Calculate the vertex offset for this face and vertex
     vec3 offset = vertexOffsets[aFace* 4 + gl_VertexID];
     vec2 texOffset = textureOffsets[gl_VertexID];

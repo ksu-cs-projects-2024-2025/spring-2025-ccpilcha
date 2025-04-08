@@ -10,6 +10,7 @@ in vec2 TexCoord;
 flat in int layer;
 flat in int BlockID; 
 flat in int Face;
+in float vAO;
 out vec4 FragColor;
 
 //in vec4 vertexColor; // the input variable from the vertex shader (same name and same type)  
@@ -21,8 +22,6 @@ void main()
     if (Face == 4) faceColor = faceColor*2/5.f;
     else if (Face != 5) faceColor = faceColor*2/3.f;
 
-    //FragColor = vec4(vec3(texture(textureAtlas, (TexCoord+vec2(mod(tile, tileSize.x), floor(tile/tileSize.x)))*tileSize / atlasSize))*faceColor, opacity);
-    FragColor = vec4(vec3(texture(textureAtlas, vec3(TexCoord, layer)))*faceColor, opacity);
-    //FragColor = vec4(vec3(texture(textureAtlas, TexCoord))*faceColor, opacity);
-    //FragColor = vec4(1.0f,1.0f,1.0f,1.0f);
+    vec3 color = vec3(texture(textureAtlas, vec3(TexCoord, layer)))*faceColor;
+    FragColor = vec4(mix(mix(color, vec3(0.f), 0.5f), color, vAO), opacity);
 }
