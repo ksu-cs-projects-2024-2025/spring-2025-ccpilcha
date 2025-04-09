@@ -16,18 +16,19 @@ Terrain::~Terrain()
 std::vector<CHUNK_POS_Z_TYPE> Terrain::generateHeightMap(ChunkPos pos)
 {
     // Let's make some Perlin Noise!
-	std::vector<float> layer1(CHUNK_X_SIZE * CHUNK_Y_SIZE), layer2(CHUNK_X_SIZE * CHUNK_Y_SIZE), layer3(CHUNK_X_SIZE * CHUNK_Y_SIZE);
+	std::vector<float> layer1(CHUNK_X_SIZE * CHUNK_Y_SIZE), layer2(CHUNK_X_SIZE * CHUNK_Y_SIZE), layer3(CHUNK_X_SIZE * CHUNK_Y_SIZE), layer4(CHUNK_X_SIZE * CHUNK_Y_SIZE);
 
-	noise->GenUniformGrid2D(layer1.data(), pos.x * CHUNK_X_SIZE, pos.y * CHUNK_Y_SIZE, CHUNK_X_SIZE, CHUNK_Y_SIZE, 0.01, seed);
+	noise->GenUniformGrid2D(layer1.data(), pos.x * CHUNK_X_SIZE, pos.y * CHUNK_Y_SIZE, CHUNK_X_SIZE, CHUNK_Y_SIZE, 0.05, seed);
 	noise->GenUniformGrid2D(layer2.data(), pos.x * CHUNK_X_SIZE, pos.y * CHUNK_Y_SIZE, CHUNK_X_SIZE, CHUNK_Y_SIZE, 0.01, seed);
-	noise->GenUniformGrid2D(layer3.data(), pos.x * CHUNK_X_SIZE, pos.y * CHUNK_Y_SIZE, CHUNK_X_SIZE, CHUNK_Y_SIZE, 0.001, seed);
+	noise->GenUniformGrid2D(layer3.data(), pos.x * CHUNK_X_SIZE, pos.y * CHUNK_Y_SIZE, CHUNK_X_SIZE, CHUNK_Y_SIZE, 0.005, seed);
+	noise->GenUniformGrid2D(layer4.data(), pos.x * CHUNK_X_SIZE, pos.y * CHUNK_Y_SIZE, CHUNK_X_SIZE, CHUNK_Y_SIZE, 0.01, seed);
 
 	std::vector<CHUNK_POS_Z_TYPE> height;
 	for (int y = 0; y < CHUNK_Y_SIZE; y++)
 	{
 		for (int x = 0; x < CHUNK_X_SIZE; x++)
 		{
-			height.push_back((int64_t)((8 + 4 * layer1[x + CHUNK_X_SIZE * y] ) * powf(2,3*layer3[x + CHUNK_X_SIZE * y]) * powf(2,2*layer2[x + CHUNK_X_SIZE * y])));
+			height.push_back((int64_t)floorf(((layer1[x + CHUNK_X_SIZE * y] + 10 * layer2[x + CHUNK_X_SIZE * y] + 30 * layer4[x + CHUNK_X_SIZE * y] * layer3[x + CHUNK_X_SIZE * y]))));
 		}
 	}
 
@@ -73,11 +74,12 @@ std::vector<CHUNK_DATA> Terrain::generateChunk(ChunkPos pos)
     for (int64_t z = 0; z < CHUNK_Z_SIZE; z++)
     {
         int64_t trueHeight = pos.z * CHUNK_Z_SIZE + z;
+        int64_t diffHeight;
         CHUNK_DATA layer = CHUNK_DATA();
         for (int y = 0; y < CHUNK_Y_SIZE; y++){
         for (int x = 0; x < CHUNK_X_SIZE; x++){
             if (trueHeight == heightMap[x + CHUNK_X_SIZE * y]) {
-                layer[y][x] = 1;
+                layer[y][x] = trueHeight > 0 ? 1 : 4;
             } else if (trueHeight < heightMap[x + CHUNK_X_SIZE * y])
             {
                 layer[y][x] = 2;

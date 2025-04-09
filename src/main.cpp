@@ -41,7 +41,7 @@ static int      frameCount = 0; // Keeps track off the nth frame
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
 {
     // Instantiate variables
-    Uint64 then = SDL_GetPerformanceCounter();
+    then = SDL_GetPerformanceCounter();
     frequency = SDL_GetPerformanceFrequency();
 
     if (!SDL_Init(SDL_INIT_VIDEO)) {
@@ -56,8 +56,6 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
             << std::endl;
         exit(1);
     }
-
-
     // We now need to declare the use of OpenGL version 4.1
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
@@ -76,13 +74,12 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
     SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
     SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 4); // Try 4 or 8
 
-    SDL_SetHint(SDL_HINT_RENDER_VSYNC, "0");
     // 0 disables V-Sync in SDL
     // TODO: should we allow V-Sync as a configuration?
-    SDL_GL_SetSwapInterval(0);
+    SDL_GL_SetSwapInterval(-1);
 
     // We can just default to 800x600 for now.
-    window = SDL_CreateWindow(appname, 800, 600, SDL_WINDOW_OPENGL);
+    window = SDL_CreateWindow(appname, 800, 600, SDL_WINDOW_OPENGL | SDL_WINDOW_HIGH_PIXEL_DENSITY);
 
     // Checking that the window initialized
     if (window == nullptr)
@@ -118,9 +115,6 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
 
     // After OpenGL context is created:
     //glEnable(GL_MULTISAMPLE);
-    glViewport(0, 0, 800, 600);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glEnable( GL_BLEND );
 
 #ifdef G_DEBUG
     std::cout << "Vendor: " << glGetString(GL_VENDOR) << std::endl;
@@ -134,9 +128,12 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
     // By default, we need to direct the game context towards the current window.
     // We also need to declare the aspect ratio so we can properly calculate the projection matrix
     context->window = window;
-    context->width = 800;
-    context->height = 600;
-    context->aspectRatio = 800/600.f;
+    SDL_GetWindowSizeInPixels(window, &context->width, &context->height);
+    context->aspectRatio = context->width / (float)context->height;
+    
+    glViewport(0, 0, context->width, context->height);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable( GL_BLEND );
 
 // START ENGINE!
     game = new GameEngine(context);
@@ -153,7 +150,16 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
     }
 
     // Allow the OpenGL viewport to automatically resize with respect to the window
-    if (event->type == SDL_EVENT_WINDOW_RESIZED){ 
+    if (event->type == SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED){ 
+        Uint32 flags = SDL_GetWindowFlags(window);
+
+        if (flags & SDL_WINDOW_FULLSCREEN) {
+            std::cout << "Exclusive fullscreen mode\n";
+        } else if (flags & SDL_WINDOW_BORDERLESS) {
+            std::cout << "Borderless fullscreen mode\n";
+        } else {
+            std::cout << "Windowed mode (or macOS fullscreen button?)\n";
+        }
         context->width = event->window.data1;
         context->height = event->window.data2;
         context->aspectRatio = (float) event->window.data1 / (float) event->window.data2;
@@ -167,6 +173,7 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
 SDL_AppResult SDL_AppIterate(void *appstate)
 {
     Uint64 now = SDL_GetPerformanceCounter();
+    Uint64 frameStart = SDL_GetTicks();
     // This calculates the amount of time between the last frame and the current frame
     double deltaTime = (double)(now - then) / frequency;
     accTime += deltaTime;
@@ -180,9 +187,17 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         frameCount = 0;
         //std::cout.flush();
     }
+
     // We need to update before we render
     game->Update(deltaTime);
     game->Render();
+    Uint64 frameEnd = SDL_GetTicks();
+    int frameTime = frameEnd - frameStart;
+    int targetDelay = 1000 / 144;
+
+    if (frameTime < targetDelay)
+        SDL_Delay(targetDelay - frameTime);
+
     SDL_GL_SwapWindow(window);
     return SDL_APP_CONTINUE;
 }

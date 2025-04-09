@@ -50,7 +50,7 @@ void ChunkMesh::Load(std::vector<ChunkVertex> data) {
 		bufferB = std::move(data);
 
 	loaded.store(true);
-
+	dirty.store(false);
 	meshSwapping.store(true);
 }
 

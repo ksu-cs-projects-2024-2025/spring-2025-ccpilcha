@@ -75,6 +75,20 @@ struct ChunkPos
         return *this;
     }
 
+    static ChunkPos adjust(const ChunkPos& pos, int& x, int& y, int& z) {
+        int dx = 0, dy = 0, dz = 0;
+        if (x < 0)              dx--;
+        if (x >= CHUNK_X_SIZE)  dx++;
+        if (y < 0)              dy--;
+        if (y >= CHUNK_Y_SIZE)  dy++;
+        if (z < 0)              dz--;
+        if (z >= CHUNK_Z_SIZE)  dz++;
+        x -= dx * CHUNK_X_SIZE;
+        y -= dy * CHUNK_Y_SIZE;
+        z -= dz * CHUNK_Z_SIZE;
+        return ChunkPos{pos.x + dx, pos.y + dy, pos.z + dz};
+    }
+
 
     std::string toString() const {
         return "{" + std::to_string(x) + ", " + std::to_string(y) + ", " + std::to_string(z) + "}";

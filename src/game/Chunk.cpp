@@ -25,7 +25,6 @@ bool Chunk::IsEmpty()
 void Chunk::Load(std::vector<CHUNK_DATA> data)
 {
     this->blocks.swap(data);
-    this->dirty = true;
     this->loaded = true;
 }
 
@@ -47,7 +46,6 @@ void Chunk::SetBlockId(int x, int y, int z, BLOCK_ID_TYPE id)
         blocks.resize(z + 1);
     }
     blocks[z][y][x] = id;
-    this->dirty = true;
 }
 
 void Chunk::Clear()
@@ -133,6 +131,5 @@ void Chunk::Load_RLE(nlohmann::json rle)
             index++;
         }
     }
-    this->dirty = true;
     this->loaded = true;
 }

@@ -16,6 +16,7 @@ constexpr int8_t nOffsets[6][3] = {
 	{0, 0, 1}  // +z
 };
 
+// These are the blocks which must be checked for ambient occlusion lighting
 const int aoOffsets[6][4][3][3] = {
     // -X face (left)
 	/*
@@ -78,8 +79,7 @@ void ChunkRenderer::RenderChunkAt(PrioritizedChunk pChunk)
 		chunkRenderQueue.push(pChunk);
 		return;
 	}
-	if (!chunk->dirty) return;
-
+	
 	chunk->rendering.store(true);
 
 	std::vector<ChunkVertex> newVerts;
@@ -134,13 +134,14 @@ void ChunkRenderer::RenderChunkAt(PrioritizedChunk pChunk)
 	this->chunkMeshes.at(pos)->Load(newVerts);
 	this->chunkMeshes.at(pos)->pos = pos;
 	chunk->rendering.store(false);
+	
 }
 
 void ChunkRenderer::RenderChunks(GameContext *c)
 {
 
     // TODO: this thread needs to end when the game exits the playing state
-    while (true)
+    while (!c->isClosing)
     {
         {
             std::unique_lock<std::mutex> lock(queueRenderMutex);
@@ -193,7 +194,7 @@ ChunkRenderer::ChunkRenderer(World *w) :
 	chunkShader("assets/shaders/game/chunk.v.glsl", "assets/shaders/game/chunk.f.glsl"), 
 	chunkMeshes(), 
 	threadPool(std::make_unique<ThreadPool>(16)),
-	threadPoolP(std::make_unique<ThreadPool>(2))
+	threadPoolP(std::make_unique<ThreadPool>(8))
 {
 
 }
@@ -212,7 +213,6 @@ bool ChunkRenderer::IsLoaded(ChunkPos pos)
 
 void ChunkRenderer::Init(GameContext *c)
 {
-
     this->loadThread = std::thread(&ChunkRenderer::RenderChunks, this, c);
 
 }
@@ -312,6 +312,7 @@ void ChunkRenderer::Render(GameContext *c)
 	glm::mat4 VP = c->plr->camera.proj * c->plr->camera.view;
 	std::array<Plane, 6> frustumPlanes = extractFrustumPlanes(VP);
 	chunkShader.setMat4("model", glm::translate(glm::mat4(1.0f), camPos));
+	chunkShader.setVec3("plrPos",(glm::vec3)c->plr->pos - camPos);
 
 	for (int dz = -c->renderDistance; dz < c->renderDistance; dz++){
 	for (int dy = -c->renderDistance; dy < c->renderDistance; dy++){

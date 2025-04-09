@@ -24,7 +24,7 @@ protected:
 public:
     bool used = false;
     ChunkPos pos;
-    std::atomic<bool> rendering, isUploaded;
+    std::atomic<bool> rendering = false, isUploaded = false, dirty = false;
     ChunkMesh();
     ~ChunkMesh();
     bool IsReusable() const { return !used; }

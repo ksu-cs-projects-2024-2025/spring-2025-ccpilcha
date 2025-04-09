@@ -40,7 +40,6 @@ class ChunkRenderer
     // this is the thread worker pool which will process/render chunks
     std::unique_ptr<ThreadPool> threadPool;
     std::unique_ptr<ThreadPool> threadPoolP;
-    tbb::concurrent_unordered_map<ChunkPos, std::shared_ptr<ChunkMesh>> chunkMeshes;
 
     std::thread loadThread;
 
@@ -55,6 +54,7 @@ public:
     tbb::concurrent_queue<ChunkPos> chunkRemoveQueue;
     // instead of creating more mesh instances, we can just use one from here
     tbb::concurrent_queue<std::shared_ptr<ChunkMesh>> freeMeshes;
+    tbb::concurrent_unordered_map<ChunkPos, std::shared_ptr<ChunkMesh>> chunkMeshes;
     std::mutex queueRenderMutex;
     std::condition_variable queueCV;
     ChunkRenderer(World*);

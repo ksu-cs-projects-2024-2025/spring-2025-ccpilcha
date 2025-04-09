@@ -10,6 +10,7 @@ flat out int BlockID;
 flat out int Face;
 flat out int layer;
 out float vAO;
+out float fogFactor;
 
 // Corrected vertex order for triangle strip
 const vec3 vertexOffsets[24] = vec3[24](
@@ -37,6 +38,7 @@ uniform mat4 model;
 uniform mat4 view;
 uniform mat4 projection;
 uniform vec3 chunkPos;
+uniform vec3 plrPos;
 uniform int LOD;
 
 void main()
@@ -65,6 +67,7 @@ void main()
         layer = int(aBlockID);
     }
 
+    fogFactor = max(0.f, (length(worldPos - plrPos))/2000.f);
 	gl_Position = projection * view * model * vec4(worldPos, 1.0f);
 	TexCoord = texOffset;
 	BlockID = int(aBlockID);

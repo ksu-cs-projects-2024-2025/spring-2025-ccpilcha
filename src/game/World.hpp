@@ -40,6 +40,9 @@ struct BlockFace {
 };
 
 class World {
+
+    GLuint fbo, fboTexture;
+
     Shader gizmoShader, skyShader, highlightShader;
     Mesh gizmoMesh, skyMesh, highlightMesh;
     ChunkRenderer renderer;
@@ -50,7 +53,7 @@ class World {
     int sX, sY, sZ, sF;
     // the intention is to build the BFS search order first
     void TraverseRays(GameContext *c);
-    void LoadChunks(GameContext *c);
+    void LoadChunks(GameContext *c);    
 public:
 
     // TODO: make this part of the GameContext?

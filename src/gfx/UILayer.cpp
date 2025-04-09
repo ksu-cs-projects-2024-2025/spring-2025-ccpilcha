@@ -18,17 +18,18 @@ void UILayer::Init(GameContext *c, std::vector<UIComponent> elements)
 void UILayer::OnEvent(GameContext *c, const SDL_Event *event)
 {
     int w, h;
-    SDL_GetWindowSize(c->window, &w, &h);
+    SDL_GetWindowSizeInPixels(c->window, &w, &h);
+    float pixelDensity = SDL_GetWindowPixelDensity(c->window);
     if (event->type == SDL_EVENT_MOUSE_MOTION)
     {
         for (auto &elem : elements)
-            elem.hover = elem.isInside(glm::vec2(event->motion.x, h-event->motion.y));
+            elem.hover = elem.isInside(glm::vec2(event->motion.x * pixelDensity, h-event->motion.y * pixelDensity));
     }
     if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN)
     {
         for (auto &elem : elements)
         {
-            if (elem.isInside(glm::vec2(event->motion.x, h-event->motion.y)))
+            if (elem.isInside(glm::vec2(event->motion.x * pixelDensity, h-event->motion.y * pixelDensity)))
                 elem.select = true;
         }
     }
@@ -37,7 +38,7 @@ void UILayer::OnEvent(GameContext *c, const SDL_Event *event)
         for (auto &elem : elements)
         {
             elem.select = false;
-            if (elem.isInside(glm::vec2(event->motion.x, h-event->motion.y)))
+            if (elem.isInside(glm::vec2(event->motion.x * pixelDensity, h-event->motion.y * pixelDensity)))
                 elem.action();
         }
     }
@@ -54,7 +55,7 @@ void UILayer::Render(GameContext *c)
     glCall(glDisable(GL_CULL_FACE));
     guiShader.use();
     int w, h;
-    SDL_GetWindowSize(c->window, &w, &h);
+    SDL_GetWindowSizeInPixels(c->window, &w, &h);
     guiShader.setVec2("screenSize", glm::vec2(w, h));
     for (const auto &elem : elements)
     {

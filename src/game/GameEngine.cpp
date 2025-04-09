@@ -9,12 +9,12 @@ gui()
 {
     // TODO: make this work off of a json or yaml. imports all the stuff necessary
     int w, h;
-    SDL_GetWindowSize(c->window, &w, &h);
+    SDL_GetWindowSizeInPixels(c->window, &w, &h);
     UIComponent startButton;
     startButton.text = "PLAY";
     startButton.origin = glm::vec2(w/2, h/2);
-    startButton.radius = glm::vec2(200.f, 50.f);
-    startButton.borderWidth = 10.f;
+    startButton.radius = glm::vec2(400.f, 100.f);
+    startButton.borderWidth = 20.f;
     startButton.mainColor = glm::vec4(0.9f,0.9f,0.92f,1.0f);
     startButton.highlightColor = glm::vec4(0.95f,0.95f,0.95f,1.0f);
     startButton.shadowColor = glm::vec4(0.6f,0.6f,0.6f,1.0f);
@@ -29,8 +29,8 @@ GameEngine::~GameEngine()
     delete world;
 }
 
-SDL_AppResult GameEngine::Init() {
-
+SDL_AppResult GameEngine::Init() 
+{
 
     return this->ChangeState();
 }

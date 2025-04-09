@@ -33,7 +33,6 @@ class Chunk
     
 public:
     ChunkPos pos;
-    bool dirty = true;
     // eventually this will store all 15 possible combinations of paths through a chunk.
     // inspiration: https://tomcc.github.io/2014/08/31/visibility-1.html 
     uint16_t visible;

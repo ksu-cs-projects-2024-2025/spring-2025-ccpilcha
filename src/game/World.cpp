@@ -54,17 +54,7 @@ bool World::AreAllNeighborsLoaded(const ChunkPos &pos)
 BLOCK_ID_TYPE World::GetBlockId(const ChunkPos &pos, int x, int y, int z)
 {
     // make sure this is a proper bound for a chunk
-    int dx = 0, dy = 0, dz = 0;
-    if (x < 0)              dx--;
-    if (x >= CHUNK_X_SIZE)  dx++;
-    if (y < 0)              dy--;
-    if (y >= CHUNK_Y_SIZE)  dy++;
-    if (z < 0)              dz--;
-    if (z >= CHUNK_Z_SIZE)  dz++;
-    x -= dx * CHUNK_X_SIZE;
-    y -= dy * CHUNK_Y_SIZE;
-    z -= dz * CHUNK_Z_SIZE;
-    ChunkPos adjusted = pos + ChunkPos{dx,dy,dz};
+    ChunkPos adjusted = ChunkPos::adjust(pos, x, y, z);
 
     if (!ChunkLoaded(adjusted)) return 0;  // Ensure chunk is valid
 
@@ -85,17 +75,9 @@ BLOCK_ID_TYPE World::GetBlockId(const ChunkPos &pos, int x, int y, int z)
 void World::SetBlockId(const ChunkPos &pos, int x, int y, int z, BLOCK_ID_TYPE id)
 {
     // make sure this is a proper bound for a chunk
-    int dx = 0, dy = 0, dz = 0;
-    if (x < 0)              dx--;
-    if (x >= CHUNK_X_SIZE)  dx++;
-    if (y < 0)              dy--;
-    if (y >= CHUNK_Y_SIZE)  dy++;
-    if (z < 0)              dz--;
-    if (z >= CHUNK_Z_SIZE)  dz++;
-    x -= dx * CHUNK_X_SIZE;
-    y -= dy * CHUNK_Y_SIZE;
-    z -= dz * CHUNK_Z_SIZE;
-    ChunkPos adjusted = pos + ChunkPos{dx,dy,dz};
+    ChunkPos adjusted = ChunkPos::adjust(pos, x, y, z);
+
+    glm::ivec3 blockPos{x,y,z};
 
     if (!ChunkLoaded(adjusted)) return;  // Ensure chunk is valid
 
@@ -106,7 +88,31 @@ void World::SetBlockId(const ChunkPos &pos, int x, int y, int z, BLOCK_ID_TYPE i
         this->modified.insert(adjusted);
     }
 
-    renderer.chunkRenderQueue.push({adjusted, std::numeric_limits<float>::lowest()});
+    // we also have to push the surrounding border chunks for ambient occlusion updates
+    if ((x == 0 || x == CHUNK_X_SIZE - 1) ||
+        (y == 0 || y == CHUNK_Y_SIZE - 1) ||
+        (z == 0 || z == CHUNK_Z_SIZE - 1))
+    {
+        // Loop through 3×3×3 region to determine affected chunks
+        int nx,ny,nz;
+        ChunkPos neighborChunk;
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dy = -1; dy <= 1; dy++) {
+                for (int dz = -1; dz <= 1; dz++) {
+                    if (dx == 0 && dy == 0 && dz == 0) continue;
+                    nx = x + dx, ny = y + dy, nz = z + dz;
+                    neighborChunk = ChunkPos::adjust(adjusted, nx, ny, nz);
+                    if ((nx > 0 && nx < CHUNK_X_SIZE - 1) &&
+                        (ny > 0 && ny < CHUNK_Y_SIZE - 1) &&
+                        (nz > 0 && nz < CHUNK_Z_SIZE - 1)) continue;
+                    renderer.chunkRenderQueue.push({neighborChunk, false, id != 0 ? -1 : std::numeric_limits<float>::lowest()});
+                }
+            }
+        }
+    }
+
+    renderer.chunkRenderQueue.push({adjusted, id == 0, id == 0 ? -1 : std::numeric_limits<float>::lowest()});
+    
     renderer.queueCV.notify_one();
 }
 
@@ -280,7 +286,7 @@ void World::LoadChunks(GameContext *c)
                     if (this->chunks.at(nPos)->visible == 0) return;
                     if (!this->chunks.at(nPos)->IsEmpty())
                     {
-                        renderer.chunkRenderQueue.push({nPos, (float)nPos.distance(pPos)});
+                        renderer.chunkRenderQueue.push({nPos, false, (float)nPos.distance(pPos)});
                         renderer.queueCV.notify_one();
                         // we should then queue another thread responsible for loading chunk vertex data
                     }
@@ -412,6 +418,7 @@ bool World::ChunkLoaded(const ChunkPos &pos)
 
 void World::Render(GameContext *c)
 {
+    
     // RENDER SKY
     glCall(glDisable(GL_DEPTH_TEST));
     glCall(glDisable(GL_CULL_FACE));
