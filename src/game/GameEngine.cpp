@@ -3,6 +3,10 @@
 #include "glad/glad.h"
 #include "../util/GLHelper.hpp"
 #include <SDL3/SDL.h>
+#include <imgui.h>
+#include <imgui_impl_sdl3.h>
+#include <imgui_impl_opengl3.h>
+
 
 GameEngine::GameEngine(GameContext *c) : context(c), plr(), 
 gui()
@@ -60,6 +64,7 @@ SDL_AppResult GameEngine::ChangeState()
 
 SDL_AppResult GameEngine::OnEvent(SDL_Event *event) {
     gui.OnEvent(context, event);    
+    ImGuiIO& io = ImGui::GetIO();
     switch(state){
         case MENU:
             break;
@@ -72,7 +77,8 @@ SDL_AppResult GameEngine::OnEvent(SDL_Event *event) {
             }
             if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN){
                 if (event->button.button == SDL_BUTTON_LEFT) {
-                    context->isFocused = true;
+                    if (!io.WantCaptureMouse)
+                        context->isFocused = true;
                 }
             }
             if (SDL_GetWindowRelativeMouseMode(context->window) != context->isFocused) 
@@ -100,7 +106,7 @@ SDL_AppResult GameEngine::Update(double deltaTime) {
 
 SDL_AppResult GameEngine::Render() {
     glCall(glClearColor(1.0f, 1.0f, 1.0f, 1.0f));
-    glCall(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
+    glCall(glClear(GL_COLOR_BUFFER_BIT));
     switch(state){
     case MENU:
         break;

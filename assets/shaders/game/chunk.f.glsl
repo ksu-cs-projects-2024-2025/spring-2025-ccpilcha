@@ -8,7 +8,6 @@ uniform vec3 hint;
 
 in vec2 TexCoord;
 flat in int layer;
-flat in int BlockID; 
 flat in int Face;
 in float vAO;
 in float fogFactor;
@@ -23,7 +22,7 @@ void main()
     if (Face == 4) faceColor = faceColor*2/5.f;
     else if (Face != 5) faceColor = faceColor*2/3.f;
 
-    vec3 color = vec3(texture(textureAtlas, vec3(TexCoord, layer)))*faceColor;
-    vec3 aoColor = mix(mix(color, vec3(0.f), 0.5f), color, vAO);
-    FragColor = vec4(mix(aoColor, vec3(0.53, 0.97, 1.0), fogFactor), opacity);
+    vec4 color = vec4(texture(textureAtlas, vec3(TexCoord, layer)))*vec4(faceColor,1.0);
+    vec4 aoColor = mix(mix(color, vec4(0.0, 0.0, 0.0, 1.0), 0.5f), color, vAO);
+    FragColor = vec4(mix(aoColor, vec4(0.53, 0.97, 1.0, 1.0), fogFactor));
 }

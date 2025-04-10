@@ -41,8 +41,6 @@ class Shader
     }
 public:
     unsigned int ID;
-    const char* vertexCodeStr;
-    const char* fragmentCodeStr;
 
     // constructor generates the shader on the fly
     // ------------------------------------------------------------------------
@@ -50,7 +48,7 @@ public:
     {
         // 1. retrieve the vertex/fragment source code from filePath
         std::string vertexCode = ReadFile(vertexPath);
-        vertexCodeStr = vertexCode.c_str();
+        const char* vertexCodeStr = vertexCode.c_str();
         // 2. compile shaders
         // vertex shader
         unsigned int vertex = glCallR(glCreateShader(GL_VERTEX_SHADER));
@@ -70,11 +68,11 @@ public:
     // ------------------------------------------------------------------------
     Shader(const char* vertexPath, const char* fragmentPath)
     {
-
         std::string vertexCode = ReadFile(vertexPath);
         std::string fragmentCode = ReadFile(fragmentPath);
-        vertexCodeStr = vertexCode.c_str();
-        fragmentCodeStr = fragmentCode.c_str();
+
+        const char* vertexCodeStr = vertexCode.c_str();
+        const char* fragmentCodeStr = fragmentCode.c_str();
         // 2. compile shaders
         // vertex shader
         unsigned int vertex = glCallR(glCreateShader(GL_VERTEX_SHADER));
@@ -94,6 +92,47 @@ public:
         checkCompileErrors(ID, "PROGRAM");
         // delete the shaders as they're linked into our program now and no longer necessary
         glCall(glDeleteShader(vertex));
+        glCall(glDeleteShader(fragment));
+    }
+
+    // constructor generates the shader on the fly
+    // ------------------------------------------------------------------------
+    Shader(const char* vertexPath, const char* geoPath, const char* fragmentPath)
+    {
+        std::string vertexCode = ReadFile(vertexPath);
+        std::string geoCode = ReadFile(geoPath);
+        std::string fragmentCode = ReadFile(fragmentPath);
+        
+        const char* vertexCodeStr = vertexCode.c_str();
+        const char* geoCodeStr = geoCode.c_str();
+        const char* fragmentCodeStr = fragmentCode.c_str();
+
+        // 2. compile shaders
+        // vertex shader
+        unsigned int vertex = glCallR(glCreateShader(GL_VERTEX_SHADER));
+        glCall(glShaderSource(vertex, 1, &vertexCodeStr, NULL));
+        glCall(glCompileShader(vertex));
+        checkCompileErrors(vertex, "VERTEX");
+        // geometry Shader
+        unsigned int geometry = glCallR(glCreateShader(GL_GEOMETRY_SHADER));
+        glCall(glShaderSource(geometry, 1, &geoCodeStr, NULL));
+        glCall(glCompileShader(geometry));
+        checkCompileErrors(geometry, "GEOMETRY");
+        // fragment Shader
+        unsigned int fragment = glCallR(glCreateShader(GL_FRAGMENT_SHADER));
+        glCall(glShaderSource(fragment, 1, &fragmentCodeStr, NULL));
+        glCall(glCompileShader(fragment));
+        checkCompileErrors(fragment, "FRAGMENT");
+        // shader Program
+        ID = glCallR(glCreateProgram());
+        glCall(glAttachShader(ID, vertex));
+        glCall(glAttachShader(ID, geometry));
+        glCall(glAttachShader(ID, fragment));
+        glCall(glLinkProgram(ID));
+        checkCompileErrors(ID, "PROGRAM");
+        // delete the shaders as they're linked into our program now and no longer necessary
+        glCall(glDeleteShader(vertex));
+        glCall(glDeleteShader(geometry));
         glCall(glDeleteShader(fragment));
     }
 

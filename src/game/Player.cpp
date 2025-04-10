@@ -55,6 +55,9 @@ void Player::OnEvent(GameContext *c, const SDL_Event *event)
         if (key == SDLK_3) cursor = 3;
         if (key == SDLK_4) cursor = 4;
         if (key == SDLK_5) cursor = 5;
+        if (key == SDLK_6) cursor = 6;
+        if (key == SDLK_7) cursor = 7;
+        if (key == SDLK_8) cursor = 8;
     }
 }
 

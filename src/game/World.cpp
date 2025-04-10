@@ -9,6 +9,7 @@
 
 #include "World.hpp"
 #include <unordered_set>
+#include <imgui.h>
 
 #include <thread>
 
@@ -306,12 +307,14 @@ World::World() :
     chunks(), 
     renderer(this),
     threadPool(std::make_unique<PriorityThreadPool>(16)),
-    gizmoShader("assets/shaders/game/gizmo.v.glsl", "assets/shaders/game/gizmo.f.glsl"),
+    gizmoShader("assets/shaders/game/gizmo.v.glsl", "assets/shaders/game/gizmo.g.glsl", "assets/shaders/game/gizmo.f.glsl"),
 	skyShader("assets/shaders/game/sky.v.glsl", "assets/shaders/game/sky.f.glsl"),
-	highlightShader("assets/shaders/game/highlight.v.glsl", "assets/shaders/game/highlight.f.glsl")
+	highlightShader("assets/shaders/game/highlight.v.glsl", "assets/shaders/game/highlight.f.glsl"),
+    postShader("assets/shaders/game/post.v.glsl","assets/shaders/game/post.f.glsl")
 {
 
 }
+GLuint quadVAO, quadVBO;
 
 /**
  * @brief Initializes the world.
@@ -320,6 +323,58 @@ World::World() :
  */
 void World::Init(GameContext *c)
 {
+
+    float quadVertices[] = {
+        // positions   // texCoords
+        -1.0f,  1.0f,   0.0f, 1.0f,
+        -1.0f, -1.0f,   0.0f, 0.0f,
+         1.0f, -1.0f,   1.0f, 0.0f,
+    
+        -1.0f,  1.0f,   0.0f, 1.0f,
+         1.0f, -1.0f,   1.0f, 0.0f,
+         1.0f,  1.0f,   1.0f, 1.0f
+    };
+    
+    glGenVertexArrays(1, &quadVAO);
+    glGenBuffers(1, &quadVBO);
+    
+    glBindVertexArray(quadVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), quadVertices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+    glBindVertexArray(0);    
+
+    glGenFramebuffers(1, &fbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+
+    // Generate and bind color texture
+    glGenTextures(1, &fboTexture);
+    glBindTexture(GL_TEXTURE_2D, fboTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, c->width, c->height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    
+    // Attach texture as color output
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, fboTexture, 0);
+    
+    glGenTextures(1, &fboDepthTexture);
+    glBindTexture(GL_TEXTURE_2D, fboDepthTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, c->width, c->height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, fboDepthTexture, 0);
+    
+    // Validate FBO
+    GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    if (status != GL_FRAMEBUFFER_COMPLETE) {
+        std::cerr << "Framebuffer not complete! Status: 0x" << std::hex << status << std::endl;
+    }
+    
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    
     // Run this algorithm once
     std::unordered_set<ChunkPos> checkPos;
     int r = c->renderDistance;
@@ -345,6 +400,24 @@ void World::Init(GameContext *c)
 
 void World::OnEvent(GameContext *c, const SDL_Event *event)
 {
+    if (event->type == SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED)
+    {
+        glBindTexture(GL_TEXTURE_2D, fboTexture);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, c->width, c->height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        
+        // Attach texture as color output
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, fboTexture, 0);
+
+        glBindTexture(GL_TEXTURE_2D, fboDepthTexture);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, c->width, c->height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, fboDepthTexture, 0);
+
+    }
+
     if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN)
     {
         if (event->button.button == SDL_BUTTON_RIGHT)
@@ -367,10 +440,15 @@ void World::OnEvent(GameContext *c, const SDL_Event *event)
  * 
  * Then, if the player's position has changed since the last update cycle, we need to notify the Load thread to process all chunks which need to be rendered.alignas
  * @param c 
- * @param deltaTime 
+ * @param deltaTime This is in seconds!
  */
 void World::Update(GameContext *c, double deltaTime)
 {
+    ImGui::Text("block: (%d, %d, %d)", (int)floor(c->plr->pos.x),(int) floor(c->plr->pos.y), (int)floor(c->plr->pos.z));
+    ImGui::Text("chunk: (%d, %d, %d)", c->plr->chunkPos.x, c->plr->chunkPos.y, c->plr->chunkPos.z); 
+    phase += deltaTime / 2.0f;
+    if (phase >= 1.0f) phase -= 1.0f;
+
     TraverseRays(c);
 
     // we need to loop through chunks in a radius around the camera.
@@ -418,7 +496,14 @@ bool World::ChunkLoaded(const ChunkPos &pos)
 
 void World::Render(GameContext *c)
 {
-    
+	glCall(glBindFramebuffer(GL_FRAMEBUFFER, fbo));
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear both
+
+    GLenum status = glCallR(glCheckFramebufferStatus(GL_FRAMEBUFFER));
+    if (status != GL_FRAMEBUFFER_COMPLETE) {
+        std::cerr << "Framebuffer not complete! Status: " << std::hex << status << std::endl;
+    }
+
     // RENDER SKY
     glCall(glDisable(GL_DEPTH_TEST));
     glCall(glDisable(GL_CULL_FACE));
@@ -435,6 +520,20 @@ void World::Render(GameContext *c)
     // RENDER WORLD
     renderer.Render(c);
 
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glDisable(GL_DEPTH_TEST);
+
+    // Use post shader
+    postShader.use();
+    glBindVertexArray(quadVAO);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, fboTexture);
+    postShader.setInt("screenTexture", 0);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, fboDepthTexture);
+
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+
     // RENDER HIGHLIGHT
     BlockFace selected = RayTraversal(Ray(c->plr->pos, c->plr->camera.forward, c->plr->chunkPos, false), 0, c->maxBlockDistance);
     if (selected.face != -1)
@@ -447,16 +546,25 @@ void World::Render(GameContext *c)
         highlightShader.setInt("y", selected.pos.y);
         highlightShader.setInt("z", selected.pos.z);
         highlightShader.setInt("face", selected.face);
+        highlightShader.setInt("screenTexture", 0);
+        highlightShader.setInt("depthTexture", 1);
+        highlightShader.setVec2("screenSize", glm::vec2(c->width, c->height));
+        highlightShader.setFloat("phase", sqrt(1-pow(2*phase - 1,2)));
         highlightMesh.RenderInstanceAuto(GL_TRIANGLE_STRIP, 4, 1);
+        
+        ImGui::Text("block id: %d", this->GetBlockId(c->plr->chunkPos, selected.pos.x, selected.pos.y, selected.pos.z)); 
     }
 
     // RENDER GIZMO
-    glCall(glDisable(GL_DEPTH_TEST));
+    glClear(GL_DEPTH_BUFFER_BIT); // clear both
+    glEnable(GL_DEPTH_TEST);
 	gizmoShader.use();
 	gizmoShader.setMat4("projection", c->plr->camera.proj);
 	gizmoShader.setMat4("view", glm::lookAt(-10.0f * c->plr->camera.forward, glm::vec3(0.f), c->plr->camera.up));
 	// Set a fixed position for the gizmo on screen:
 	gizmoShader.setMat4("model", glm::mat4(1.0f));
+    gizmoShader.setVec2("u_viewportSize", glm::vec2(c->width, c->height));
+    gizmoShader.setFloat("u_thickness", 8.0f);
 
 	gizmoMesh.RenderInstanceAuto(GL_LINES, 2, 3);
 }

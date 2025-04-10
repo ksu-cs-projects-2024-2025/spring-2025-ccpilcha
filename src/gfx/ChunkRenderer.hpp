@@ -27,6 +27,7 @@
 #include "VertexAttribute.hpp"
 #include "ChunkMesh.hpp"
 #include "ChunkVertex.hpp"
+#include "BlockInfo.hpp"
 #include "Shader.hpp"
 
 class World;
@@ -43,6 +44,39 @@ class ChunkRenderer
 
     std::thread loadThread;
 
+    RenderType ParseRenderType(const std::string& str) {
+        if (str == "Opaque") return RenderType::Opaque;
+        if (str == "Translucent") return RenderType::Translucent;
+        if (str == "Cutout") return RenderType::Cutout;
+        return RenderType::Invisible;
+    }
+    
+    void LoadBlockRegistry(const std::string& path) {
+        std::ifstream in(path);
+        if (!in.is_open()) {
+            std::cerr << "Failed to load block metadata: " << path << "\n";
+            return;
+        }
+    
+        nlohmann::json data;
+        in >> data;
+    
+        for (auto& entry : data["blocks"]) {
+            int id = entry["id"];
+            BlockInfo info;
+            info.name = entry["name"];
+            info.renderType = ParseRenderType(entry["renderType"]);
+            info.emitsLight = entry["emitsLight"];
+            info.isCollidable = entry["isCollidable"];
+            info.hardness = entry["hardness"];
+            if (entry.contains("textureIndices"))
+                info.textureIndices = entry["textureIndices"].get<std::array<int, 6>>();
+            blockRegistry[id] = info;
+        }
+    }
+
+    std::unordered_map<int, BlockInfo> blockRegistry;
+    
     World* world;
     void RenderChunkAt(PrioritizedChunk pos);
     void RenderChunks(GameContext *c);

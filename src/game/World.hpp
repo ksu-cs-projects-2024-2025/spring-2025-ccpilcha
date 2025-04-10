@@ -4,6 +4,7 @@
 #include <oneapi/tbb/concurrent_unordered_map.h>
 #include <mutex>
 #include <oneapi/tbb/concurrent_queue.h>
+#include <nlohmann/json.hpp>
 
 #include "GameContext.hpp"
 #include "Terrain.hpp"
@@ -13,6 +14,7 @@
 #include "PrioritizedChunk.hpp"
 #include "ChunkPos.hpp"
 #include "../gfx/Ray.hpp"
+#include "BlockInfo.hpp"
 
 
 struct BlockFace {
@@ -41,19 +43,20 @@ struct BlockFace {
 
 class World {
 
-    GLuint fbo, fboTexture;
+    GLuint fbo, fboTexture, fboDepthTexture;
 
-    Shader gizmoShader, skyShader, highlightShader;
+    Shader gizmoShader, skyShader, highlightShader, postShader;
     Mesh gizmoMesh, skyMesh, highlightMesh;
     ChunkRenderer renderer;
     std::shared_ptr<Terrain> terrain;
     std::thread loadThread;
     std::unique_ptr<PriorityThreadPool> threadPool;
     std::atomic<bool> loadSignal{false};
+    float phase = 0.f;
     int sX, sY, sZ, sF;
     // the intention is to build the BFS search order first
     void TraverseRays(GameContext *c);
-    void LoadChunks(GameContext *c);    
+    void LoadChunks(GameContext *c); 
 public:
 
     // TODO: make this part of the GameContext?

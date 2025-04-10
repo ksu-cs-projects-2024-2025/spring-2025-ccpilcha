@@ -35,6 +35,7 @@ public:
     void Swap();
     void Update(GameContext *c);
     void UploadToGPU();
-    void Render();
+    void RenderOpaque();
+    void RenderTransparent();
     void Clear();
 };

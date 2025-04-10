@@ -15,6 +15,7 @@ target_link_libraries(core PUBLIC
     TBB::tbb
     FastNoise2
     nlohmann_json::nlohmann_json
+    imgui::imgui
 )
 
 # Exclude main.cpp
@@ -31,5 +32,6 @@ target_link_libraries(core_testing PUBLIC
     TBB::tbb
     FastNoise2
     nlohmann_json::nlohmann_json
+    imgui::imgui
 )
 target_compile_definitions(core_testing PRIVATE UNIT_TESTING)

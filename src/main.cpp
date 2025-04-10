@@ -16,6 +16,9 @@
 #include <SDL3_image/SDL_image.h>
 #include <SDL3_ttf/SDL_ttf.h>
 #include <FastNoise/FastNoise.h>
+#include <imgui.h>
+#include <imgui_impl_sdl3.h>
+#include <imgui_impl_opengl3.h>
 
 #include "util/GLHelper.hpp"
 #include "game/GameEngine.hpp"
@@ -32,6 +35,7 @@ static SDL_GLContext	G_OpenGL_CONTEXT;   // OpenGL context for the window
 
 // FPS and delta calculation
 
+static double   rawFPS = 0.0;  // Used for printing FPS
 static double   accTime = 0.0;  // Used for printing FPS
 static Uint64   then = 0;       // The previous timestamp from the last game loop iteration
 static Uint64   frequency;      // Precision of the time counter
@@ -135,6 +139,16 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable( GL_BLEND );
 
+    // Setup ImGui context
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO();
+    ImGui::StyleColorsDark();
+        
+    // Initialize ImGui with SDL3 + OpenGL
+    ImGui_ImplSDL3_InitForOpenGL(window, G_OpenGL_CONTEXT);
+    ImGui_ImplOpenGL3_Init("#version 410 core");
+
 // START ENGINE!
     game = new GameEngine(context);
     game->Init();
@@ -179,18 +193,36 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     accTime += deltaTime;
     then = now;
     frameCount++;
+
     // About every 250ms, I'd like to refresh the console on the FPS
     if (accTime >= 0.25) {
-        SDL_SetWindowTitle(window, (appname + std::string(" - FPS: ") + std::to_string((double) frameCount/accTime)).c_str());
+        rawFPS = (double) frameCount/accTime;
         //fprintf(stdout, "\rFPS: %.6f", (double) frameCount/accTime);
         accTime = 0.0;
         frameCount = 0;
         //std::cout.flush();
     }
 
+
+    // 3. Start new ImGui frame
+    ImGui_ImplOpenGL3_NewFrame();
+    ImGui_ImplSDL3_NewFrame();
+    ImGui::NewFrame();
+
+    // 4. Draw ImGui stuff
+    ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Always);
+    ImGui::Begin("Debug stuff :p", NULL, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize);
+    ImGui::Text("FPS: %3.3f", rawFPS);
+    
     // We need to update before we render
     game->Update(deltaTime);
     game->Render();
+
+    // 5. Render ImGui on top
+    ImGui::End();
+    ImGui::Render();
+    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
     Uint64 frameEnd = SDL_GetTicks();
     int frameTime = frameEnd - frameStart;
     int targetDelay = 1000 / 144;

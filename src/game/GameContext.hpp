@@ -2,6 +2,7 @@
 
 #include <SDL3/SDL_keycode.h>
 #include <SDL3/SDL.h>
+#include <string>
 
 #include "gfx/TextureArray.hpp"
 
@@ -36,6 +37,8 @@ struct GameContext {
 
     SDL_Keycode forward, backward, left, right, up, down, sprint;
 
+    std::string pathToTextureJSON;
+
     enum GameState {
         GAME_STATE_MENU,
         GAME_STATE_PLAYING,
@@ -48,6 +51,7 @@ struct GameContext {
         pitchSensitivity(0.1f), 
         texture("assets/textures/texturepack-simple.png") // TODO: i want all these variables to come from a config file
     {
+        pathToTextureJSON = "assets/textures/texturepack-simple.json";
         plr = nullptr;
         world = nullptr;
 

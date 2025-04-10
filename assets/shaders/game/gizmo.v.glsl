@@ -17,7 +17,7 @@ void main()
         vertexColor = vec4(1.0, 0.0, 0.0, 1.0); // Red for +X
         aPos = vec3(float(gl_VertexID), 0.0, 0.0);
     } else if (gl_InstanceID == 2) {
-        vertexColor = vec4(0.0, 0.0, 1.0, 1.0); // Blue for +Y
+        vertexColor = vec4(0.0, 0.5, 1.0, 1.0); // Cyan for +Y
         aPos = vec3(0.0, float(gl_VertexID), 0.0);
     } else {
         vertexColor = vec4(1.0, 1.0, 1.0, 1.0); // Default color (white) for other directions

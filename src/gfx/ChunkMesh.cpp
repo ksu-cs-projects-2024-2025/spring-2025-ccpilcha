@@ -88,7 +88,7 @@ void ChunkMesh::UploadToGPU() {
 
 	glCall(glBindBuffer(GL_ARRAY_BUFFER, this->vbo));
 	glCall(glBindVertexArray(this->vao));
-    glCall(glBufferData(GL_ARRAY_BUFFER, currentBuffer->size() * sizeof(ChunkVertex),  currentBuffer->data(), GL_DYNAMIC_DRAW));
+    glCall(glBufferData(GL_ARRAY_BUFFER, currentBuffer->size() * sizeof(ChunkVertex),  currentBuffer->data(), GL_STATIC_DRAW));
 	meshSwapping.store(false);
 	isUploaded = true;
 }
@@ -97,7 +97,7 @@ void ChunkMesh::UploadToGPU() {
  * @brief Renders the ChunkMesh. Must be loaded prior
  * @warning Must be ran from the main thread!
  */
-void ChunkMesh::Render()
+void ChunkMesh::RenderOpaque()
 {
 	std::lock_guard<std::mutex> lock(this->meshMutex);
 	
@@ -110,6 +110,10 @@ void ChunkMesh::Render()
 	glCall(glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, this->currentBuffer->size()));
 
 	this->rendering = false;
+}
+
+void ChunkMesh::RenderTransparent()
+{
 }
 
 void ChunkMesh::Clear()

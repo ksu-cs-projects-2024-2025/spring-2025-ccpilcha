@@ -16,19 +16,20 @@ Terrain::~Terrain()
 std::vector<CHUNK_POS_Z_TYPE> Terrain::generateHeightMap(ChunkPos pos)
 {
     // Let's make some Perlin Noise!
-	std::vector<float> layer1(CHUNK_X_SIZE * CHUNK_Y_SIZE), layer2(CHUNK_X_SIZE * CHUNK_Y_SIZE), layer3(CHUNK_X_SIZE * CHUNK_Y_SIZE), layer4(CHUNK_X_SIZE * CHUNK_Y_SIZE);
+	std::vector<float> layer1(CHUNK_X_SIZE * CHUNK_Y_SIZE), layer2(CHUNK_X_SIZE * CHUNK_Y_SIZE), layer3(CHUNK_X_SIZE * CHUNK_Y_SIZE), layer4(CHUNK_X_SIZE * CHUNK_Y_SIZE), layer5(CHUNK_X_SIZE * CHUNK_Y_SIZE);
 
 	noise->GenUniformGrid2D(layer1.data(), pos.x * CHUNK_X_SIZE, pos.y * CHUNK_Y_SIZE, CHUNK_X_SIZE, CHUNK_Y_SIZE, 0.05, seed);
 	noise->GenUniformGrid2D(layer2.data(), pos.x * CHUNK_X_SIZE, pos.y * CHUNK_Y_SIZE, CHUNK_X_SIZE, CHUNK_Y_SIZE, 0.01, seed);
 	noise->GenUniformGrid2D(layer3.data(), pos.x * CHUNK_X_SIZE, pos.y * CHUNK_Y_SIZE, CHUNK_X_SIZE, CHUNK_Y_SIZE, 0.005, seed);
 	noise->GenUniformGrid2D(layer4.data(), pos.x * CHUNK_X_SIZE, pos.y * CHUNK_Y_SIZE, CHUNK_X_SIZE, CHUNK_Y_SIZE, 0.01, seed);
+	noise->GenUniformGrid2D(layer5.data(), pos.x * CHUNK_X_SIZE, pos.y * CHUNK_Y_SIZE, CHUNK_X_SIZE, CHUNK_Y_SIZE, 0.001, seed);
 
 	std::vector<CHUNK_POS_Z_TYPE> height;
 	for (int y = 0; y < CHUNK_Y_SIZE; y++)
 	{
 		for (int x = 0; x < CHUNK_X_SIZE; x++)
 		{
-			height.push_back((int64_t)floorf(((layer1[x + CHUNK_X_SIZE * y] + 10 * layer2[x + CHUNK_X_SIZE * y] + 30 * layer4[x + CHUNK_X_SIZE * y] * layer3[x + CHUNK_X_SIZE * y]))));
+			height.push_back((int64_t)floorf(((layer1[x + CHUNK_X_SIZE * y] + 10 * layer2[x + CHUNK_X_SIZE * y] + 30 * layer4[x + CHUNK_X_SIZE * y] * layer3[x + CHUNK_X_SIZE * y] * pow(2*layer5[x + CHUNK_X_SIZE * y],2) + 100 * layer5[x + CHUNK_X_SIZE * y]))));
 		}
 	}
 
@@ -44,8 +45,8 @@ uint16_t Terrain::getVisibilityFlags(ChunkPos pos)
     // TODO: focus on faces of each chunk
     // for now// Check if any of the height values falls within the chunk's vertical range
     
-    for (int y = 0; y < CHUNK_Y_SIZE; y++){
-    for (int x = 0; x < CHUNK_X_SIZE; x++){
+    for (int y = 0; y < CHUNK_Y_SIZE; y++) {
+    for (int x = 0; x < CHUNK_X_SIZE; x++) {
         int64_t h = heightMap[x + CHUNK_X_SIZE * y];
         if (h >= chunkMinZ && h < chunkMaxZ)
         {

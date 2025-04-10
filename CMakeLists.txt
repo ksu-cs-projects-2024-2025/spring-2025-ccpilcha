@@ -27,6 +27,7 @@ find_package(glm CONFIG REQUIRED)
 find_package(TBB CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 find_package(GTest CONFIG REQUIRED)
+find_package(imgui CONFIG REQUIRED)
 
 # not available in vcpkg
 add_subdirectory(modules/FastNoise)
@@ -34,7 +35,7 @@ add_subdirectory(modules/FastNoise)
 add_executable(${EXECUTABLE_NAME})
 
 # Link everything to your project
-target_link_libraries(${EXECUTABLE_NAME} SDL3::SDL3-static SDL3_image::SDL3_image-static SDL3_ttf::SDL3_ttf-static glad::glad glm::glm-header-only TBB::tbb FastNoise2 nlohmann_json::nlohmann_json)
+target_link_libraries(${EXECUTABLE_NAME} SDL3::SDL3-static SDL3_image::SDL3_image-static SDL3_ttf::SDL3_ttf-static glad::glad glm::glm-header-only TBB::tbb FastNoise2 nlohmann_json::nlohmann_json imgui::imgui)
 target_include_directories(${EXECUTABLE_NAME} PRIVATE ${Stb_INCLUDE_DIR})
 
 add_custom_target(assets

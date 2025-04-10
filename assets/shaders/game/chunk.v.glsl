@@ -2,11 +2,11 @@
 layout (location = 0) in uint packed0;
 layout (location = 1) in uint packed1;
 uvec3 aPos;
-uint aBlockID;
+uint aTextureID;
 uint aFace;
 
 out vec2 TexCoord;
-flat out int BlockID;
+flat out int TextureID;
 flat out int Face;
 flat out int layer;
 out float vAO;
@@ -47,7 +47,7 @@ void main()
     aPos.y = bitfieldExtract(packed0, 22, 5);
     aPos.z = bitfieldExtract(packed0, 17, 5);
     aFace = bitfieldExtract(packed0, 14, 3);
-    aBlockID = bitfieldExtract(packed0, 0, 14) << 2 | bitfieldExtract(packed1, 30, 2);
+    aTextureID = bitfieldExtract(packed0, 0, 14) << 2 | bitfieldExtract(packed1, 30, 2);
     uint aoBits = bitfieldExtract(packed1, 22, 8);
     uint ao = (aoBits >> ((gl_VertexID % 4) * 2)) & 0x3u;
     vAO = 0.25 + float(ao) * 0.25;
@@ -57,19 +57,10 @@ void main()
     vec2 texOffset = textureOffsets[gl_VertexID];
     
     vec3 worldPos = chunkPos + aPos + offset;
-    
-    if (aBlockID == 1)
-    {
-        if (aFace == 4) layer = 2;
-        else if (aFace != 5) layer = 1;
-        else layer = 0;
-    } else {
-        layer = int(aBlockID);
-    }
 
     fogFactor = max(0.f, (length(worldPos - plrPos))/2000.f);
 	gl_Position = projection * view * model * vec4(worldPos, 1.0f);
 	TexCoord = texOffset;
-	BlockID = int(aBlockID);
+	layer = int(aTextureID);
 	Face = int(aFace);
 }

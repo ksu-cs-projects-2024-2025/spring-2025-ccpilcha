@@ -1,5 +1,6 @@
 
 #include <glm/glm.hpp>
+#include <imgui.h>
 
 #include "game/World.hpp"
 #include "ChunkRenderer.hpp"
@@ -89,13 +90,14 @@ void ChunkRenderer::RenderChunkAt(PrioritizedChunk pChunk)
 	for (int y = 0; y < CHUNK_Y_SIZE; y++) {
 	for (int x = 0; x < CHUNK_X_SIZE; x++) {
 		BLOCK_ID_TYPE blockId = chunk->GetBlockId(x,y,z);
+		BlockInfo blockInfo = blockRegistry[blockId];
 		if (blockId <= 0) continue;
 		for (int face = 0; face < 6; face++) {
 			int nx = x + nOffsets[face][0];
 			int ny = y + nOffsets[face][1];
 			int nz = z + nOffsets[face][2];
 
-			if (this->world->GetBlockId(pos, nx, ny, nz) > 0) continue;
+			if (!blockRegistry.at(this->world->GetBlockId(pos, nx, ny, nz)).IsTranslucent()) continue;
 
 			// now we have to calculate AO
 			uint8_t aoByte = 0;
@@ -121,7 +123,7 @@ void ChunkRenderer::RenderChunkAt(PrioritizedChunk pChunk)
 			}
 
 			// Add the face to the mesh
-			newVerts.push_back({ x, y, z, blockId, face, aoByte });
+			newVerts.push_back({ x, y, z, blockInfo.textureIndices[face], face, aoByte });
 		}
 	}
 	}
@@ -197,6 +199,7 @@ ChunkRenderer::ChunkRenderer(World *w) :
 	threadPoolP(std::make_unique<ThreadPool>(8))
 {
 
+    LoadBlockRegistry("assets/textures/texturepack-simple.json");
 }
 
 ChunkRenderer::~ChunkRenderer()
@@ -213,6 +216,7 @@ bool ChunkRenderer::IsLoaded(ChunkPos pos)
 
 void ChunkRenderer::Init(GameContext *c)
 {
+
     this->loadThread = std::thread(&ChunkRenderer::RenderChunks, this, c);
 
 }
@@ -314,6 +318,7 @@ void ChunkRenderer::Render(GameContext *c)
 	chunkShader.setMat4("model", glm::translate(glm::mat4(1.0f), camPos));
 	chunkShader.setVec3("plrPos",(glm::vec3)c->plr->pos - camPos);
 
+	
 	for (int dz = -c->renderDistance; dz < c->renderDistance; dz++){
 	for (int dy = -c->renderDistance; dy < c->renderDistance; dy++){
 	for (int dx = -c->renderDistance; dx < c->renderDistance; dx++){
@@ -331,7 +336,7 @@ void ChunkRenderer::Render(GameContext *c)
 
 		if (isChunkVisible(frustumPlanes, minCorner, maxCorner)) {
 			chunkShader.setVec3("chunkPos", chunkPos);
-			mesh->Render();
+			mesh->RenderOpaque();
 		} else {
 			continue;
 		}

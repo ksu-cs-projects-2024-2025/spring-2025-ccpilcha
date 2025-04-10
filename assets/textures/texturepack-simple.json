@@ -1,0 +1,67 @@
+{
+    "blocks": [
+      {
+        "id": 0,
+        "name": "air",
+        "renderType": "Invisible",
+        "emitsLight": false,
+        "isCollidable": false,
+        "hardness": 0.0
+      },
+      {
+        "id": 1,
+        "name": "grass",
+        "renderType": "Opaque",
+        "emitsLight": false,
+        "isCollidable": true,
+        "hardness": 0.3,        
+        "textureIndices": [1,1,1,1,2,0]
+      },
+      {
+        "id": 2,
+        "name": "dirt",
+        "renderType": "Opaque",
+        "emitsLight": false,
+        "isCollidable": true,
+        "hardness": 0.3,
+        "textureIndices": [2,2,2,2,2,2]
+      },
+      {
+        "id": 3,
+        "name": "stone",
+        "renderType": "Opaque",
+        "emitsLight": false,
+        "isCollidable": true,
+        "hardness": 1.0,
+        "textureIndices": [3,3,3,3,3,3]
+      },
+      {
+        "id": 4,
+        "name": "sand",
+        "renderType": "Opaque",
+        "emitsLight": false,
+        "isCollidable": true,
+        "hardness": 0.3,
+        "textureIndices": [4,4,4,4,4,4]
+      },
+      {
+        "id": 5,
+        "name": "tree_log",
+        "renderType": "Opaque",
+        "emitsLight": false,
+        "isCollidable": true,
+        "hardness": 0.6,
+        "textureIndices": [5,5,5,5,6,6]
+      },
+      {
+        "id": 6,
+        "name": "tree_leaves",
+        "renderType": "Translucent",
+        "emitsLight": false,
+        "isCollidable": true,
+        "hardness": 0.1,
+        "textureIndices": [7,7,7,7,7,7]
+      }
+    ]
+  }
+  

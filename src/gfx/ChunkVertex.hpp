@@ -22,18 +22,18 @@ struct ChunkVertex
      * @param x 
      * @param y 
      * @param z 
-     * @param blockId 
+     * @param textureId the offset within the texture to use 
      * @param faceNum 
      */
-    ChunkVertex(int x, int y, int z, unsigned int blockId, int faceNum, int AO)
+    ChunkVertex(int x, int y, int z, int textureId, int faceNum, int AO)
     {
         packed0 = (x & 0b11111) << 27 
             | (y & 0b11111) << 22 
             | (z & 0b11111) << 17 
             | (faceNum & 0b111) << 14 
-            | ((blockId >> 2) & 0x3fff);
+            | ((textureId >> 2) & 0x3fff);
 
-        packed1 = (blockId & 0b11) << 30
+        packed1 = (textureId & 0b11) << 30
             | (AO & 0xFF) << 22; 
     }
 };
