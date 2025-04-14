@@ -9,10 +9,12 @@
 struct Terrain {
     uint64_t seed;
 
-    FastNoise::SmartNode<FastNoise::Perlin> noise;
+    FastNoise::SmartNode<FastNoise::FractalRidged> rgd;
+    FastNoise::SmartNode<FastNoise::FractalFBm> FBm;
+    FastNoise::SmartNode<FastNoise::Simplex> perlin;
     Terrain();
     ~Terrain();
-    std::vector<CHUNK_POS_Z_TYPE> generateHeightMap(ChunkPos pos);
+    std::vector<float> generateHeightMap(ChunkPos pos);
     uint16_t getVisibilityFlags(ChunkPos pos);
     std::vector<CHUNK_DATA> generateChunk(ChunkPos pos);
 };

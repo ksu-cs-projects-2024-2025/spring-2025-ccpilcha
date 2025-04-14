@@ -5,7 +5,6 @@
  * @version 0.1
  * @date 2025-03-07
  * 
- * @copyright Copyright (c) 2025
  * 
  * The way I am currently working this is through a vector which will store 2D arrays of blocks along z-layer.
  * This will save memory when there are air blocks.

@@ -39,6 +39,8 @@ uniform mat4 view;
 uniform mat4 projection;
 uniform vec3 chunkPos;
 uniform vec3 plrPos;
+uniform vec3 size;
+uniform vec3 offset;
 uniform int LOD;
 
 void main()

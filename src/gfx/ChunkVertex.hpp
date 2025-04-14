@@ -12,7 +12,7 @@ struct ChunkVertex
     //	5	TOP		+Z (Z = 1)
     
     // [5 x] [5 y] [5 z] [3 face] [14 id]
-    // [2 id] [8 AO] [22 extra]
+    // [2 id] [8 AO] [5 width1] [5 width2] [12 extra]
     // TODO: how should we use the extra space?
     uint32_t packed0, packed1;
 

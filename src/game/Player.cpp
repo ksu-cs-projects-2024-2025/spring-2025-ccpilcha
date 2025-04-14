@@ -14,6 +14,7 @@ Player::~Player()
 
 void Player::Init(GameContext *c, ChunkPos pos)
 {
+    chunkPos = pos;
     movement[0] = false;
     movement[1] = false;
     movement[2] = false;
@@ -23,6 +24,7 @@ void Player::Init(GameContext *c, ChunkPos pos)
     movement[6] = false;
 
     camera.aspect = (float)c->aspectRatio;
+    camera.setFOV(c->fov);
     camera.viewport(c->aspectRatio, c->fov);
 }
 

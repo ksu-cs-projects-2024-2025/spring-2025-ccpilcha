@@ -52,7 +52,7 @@ class World {
     std::thread loadThread;
     std::unique_ptr<PriorityThreadPool> threadPool;
     std::atomic<bool> loadSignal{false};
-    float phase = 0.f;
+    float phase = 0.f, phase2 = 0.f;
     int sX, sY, sZ, sF;
     // the intention is to build the BFS search order first
     void TraverseRays(GameContext *c);
@@ -82,5 +82,5 @@ public:
     BLOCK_ID_TYPE GetBlockId(const ChunkPos &pos, int x, int y, int z);
     void SetBlockId(const ChunkPos &pos, int x, int y, int z, BLOCK_ID_TYPE id);
     void Render(GameContext *c);
-    BlockFace RayTraversal(Ray ray, double tMin, double tMax);
+    BlockFace RayTraversal(GameContext *c, Ray ray, double tMin, double tMax);
 };

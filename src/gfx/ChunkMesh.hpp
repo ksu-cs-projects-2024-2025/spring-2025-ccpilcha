@@ -14,7 +14,9 @@ class ChunkMesh
 protected:
     bool init = false;
     GLuint vao, vbo;
+    GLuint vaoT, vboT;
     std::vector<ChunkVertex> bufferA, bufferB, *currentBuffer, *renderBuffer; 
+    std::vector<ChunkVertex> TbufferA, TbufferB, *currentTBuffer, *renderTBuffer;  // translucent blocks
     bool bufferAFlag = false; // when true, the GPU is loading from bufferA. Otherwise we are using bufferB.
     bool facesVisible[6];
     GLsync bufferSync = 0;
@@ -29,9 +31,10 @@ public:
     ~ChunkMesh();
     bool IsReusable() const { return !used; }
     bool isInit() const { return init; }
+    bool hasTranslucentBlocks() const { return !currentTBuffer->empty(); }
     bool IsLoaded() const { return loaded.load(); }
-    void Init(GLuint vao, GLuint vbo);
-    void Load(std::vector<ChunkVertex> data);
+    void Init(GLuint vao, GLuint vbo, GLuint vaoT, GLuint vboT);
+    void Load(std::vector<ChunkVertex> opaque, std::vector<ChunkVertex> translucent);
     void Swap();
     void Update(GameContext *c);
     void UploadToGPU();

@@ -65,7 +65,23 @@ const int aoOffsets[6][4][3][3] = {
 	}
 };
 
-void ChunkRenderer::RenderChunkAt(PrioritizedChunk pChunk)
+std::pair<std::vector<ChunkVertex>, std::vector<ChunkVertex>> ChunkRenderer::GenerateGreedyMesh(const Chunk &chunk, GameContext *c)
+{
+    std::vector<ChunkVertex> opaque;
+    std::vector<ChunkVertex> translucent;
+
+    // GREEDY MESHING IMPLEMENTATION:
+    // - For each axis (e.g., x, y, z):
+    //   - For each slice of the chunk in that axis:
+    //     - Scan the slice to merge contiguous faces that share the same block type, texture, and AO values.
+    //     - For each merged quad, push one ChunkVertex (or quad converted to vertices)
+    //       into either 'opaque' or 'translucent' depending on block transparency.
+    // TODO: Implement the detailed greedy meshing algorithm.
+
+    return {opaque, translucent};
+}
+
+void ChunkRenderer::RenderChunkAt(GameContext *c, PrioritizedChunk pChunk)
 {
 	ChunkPos pos = pChunk.pos;
 	if (!this->world->AreAllNeighborsLoaded(pos)) {
@@ -84,46 +100,57 @@ void ChunkRenderer::RenderChunkAt(PrioritizedChunk pChunk)
 	chunk->rendering.store(true);
 
 	std::vector<ChunkVertex> newVerts;
+	std::vector<ChunkVertex> newVertsTranslucent;
 
 	// then update
 	for (int z = 0; z < chunk->size(); z++) {
 	for (int y = 0; y < CHUNK_Y_SIZE; y++) {
 	for (int x = 0; x < CHUNK_X_SIZE; x++) {
 		BLOCK_ID_TYPE blockId = chunk->GetBlockId(x,y,z);
-		BlockInfo blockInfo = blockRegistry[blockId];
+		BlockInfo blockInfo = c->blockRegistry[blockId];
 		if (blockId <= 0) continue;
 		for (int face = 0; face < 6; face++) {
 			int nx = x + nOffsets[face][0];
 			int ny = y + nOffsets[face][1];
 			int nz = z + nOffsets[face][2];
 
-			if (!blockRegistry.at(this->world->GetBlockId(pos, nx, ny, nz)).IsTranslucent()) continue;
-
+			BlockInfo n = c->blockRegistry.at(this->world->GetBlockId(pos, nx, ny, nz));
 			// now we have to calculate AO
 			uint8_t aoByte = 0;
+			bool bothWater = blockInfo.blockType == BlockType::Water && n.blockType == BlockType::Water;
+			bool waterNextToAir = blockInfo.blockType == BlockType::Water && n.blockType == BlockType::Air;
+			
+			if (bothWater) continue;
+			if (!waterNextToAir && !n.IsTranslucent()) continue;
 
 			for (int corner = 0; corner < 4; ++corner) {
-				bool side1 = this->world->GetBlockId(pos,
+				bool side1 = !c->blockRegistry.at(
+									this->world->GetBlockId(pos,
 									x + aoOffsets[face][corner][0][0],
 									y + aoOffsets[face][corner][0][1],
-									z + aoOffsets[face][corner][0][2]) > 0;
+									z + aoOffsets[face][corner][0][2])).IsTranslucent();
 
-				bool side2 = this->world->GetBlockId(pos,
+				bool side2 = !c->blockRegistry.at(
+									this->world->GetBlockId(pos,
 									x + aoOffsets[face][corner][1][0],
 									y + aoOffsets[face][corner][1][1],
-									z + aoOffsets[face][corner][1][2]) > 0;
+									z + aoOffsets[face][corner][1][2])).IsTranslucent();
 
-				bool cornerBlock = this->world->GetBlockId(pos,
+				bool cornerBlock = !c->blockRegistry.at(
+									this->world->GetBlockId(pos,
 										x + aoOffsets[face][corner][2][0],
 										y + aoOffsets[face][corner][2][1],
-										z + aoOffsets[face][corner][2][2]) > 0;
+										z + aoOffsets[face][corner][2][2])).IsTranslucent();
 
 				uint8_t ao = (side1 && side2) ? 0 : 3 - (side1 + side2 + cornerBlock);
 				aoByte |= (ao << (corner * 2));
 			}
 
 			// Add the face to the mesh
-			newVerts.push_back({ x, y, z, blockInfo.textureIndices[face], face, aoByte });
+			if (blockInfo.IsTranslucent())
+				newVertsTranslucent.push_back({ x, y, z, blockInfo.textureIndices[face], face, aoByte });
+			else
+				newVerts.push_back({ x, y, z, blockInfo.textureIndices[face], face, aoByte });
 		}
 	}
 	}
@@ -133,7 +160,7 @@ void ChunkRenderer::RenderChunkAt(PrioritizedChunk pChunk)
 		this->chunkMeshes.emplace(pos, std::make_shared<ChunkMesh>());
 	} else if (this->chunkMeshes.at(pos)->pos != pChunk.pos) return;
 
-	this->chunkMeshes.at(pos)->Load(newVerts);
+	this->chunkMeshes.at(pos)->Load(newVerts, newVertsTranslucent);
 	this->chunkMeshes.at(pos)->pos = pos;
 	chunk->rendering.store(false);
 	
@@ -181,7 +208,7 @@ void ChunkRenderer::RenderChunks(GameContext *c)
 			this->chunkMeshes.at(pos)->pos = pos;
 			auto task = [this, c, pChunk]() {
 				// it is still possible for the taskid to increment afterwards, but this shouldn't be of much issue
-				this->RenderChunkAt(pChunk);
+				this->RenderChunkAt(c, pChunk);
 			};
 			if (pChunk.distance < 0)
 				threadPoolP->enqueueTask(task);
@@ -199,7 +226,6 @@ ChunkRenderer::ChunkRenderer(World *w) :
 	threadPoolP(std::make_unique<ThreadPool>(8))
 {
 
-    LoadBlockRegistry("assets/textures/texturepack-simple.json");
 }
 
 ChunkRenderer::~ChunkRenderer()
@@ -244,9 +270,14 @@ void ChunkRenderer::Update(GameContext *c, double deltaTime)
 	GLuint* vbo = new GLuint[meshes.size()];
 	glCall(glGenBuffers(meshes.size(), vbo));
 	glCall(glGenVertexArrays(meshes.size(), vao));
+
+	GLuint* vaoT = new GLuint[meshes.size()];
+	GLuint* vboT = new GLuint[meshes.size()];
+	glCall(glGenBuffers(meshes.size(), vboT));
+	glCall(glGenVertexArrays(meshes.size(), vaoT));
 	int i = 0;
 	for(auto mesh : meshes) {
-		mesh->Init(vao[i], vbo[i]);
+		mesh->Init(vao[i], vbo[i], vaoT[i], vboT[i]);
 		i++;
 	};
 
@@ -298,6 +329,7 @@ bool isChunkVisible(const std::array<Plane, 6>& frustum, const glm::vec3& minCor
 void ChunkRenderer::Render(GameContext *c)
 {
 	glCall(glEnable(GL_DEPTH_TEST));
+	glDepthMask(GL_TRUE);
     glCall(glEnable(GL_CULL_FACE));
 	c->texture.use(GL_TEXTURE1);
 	
@@ -318,13 +350,15 @@ void ChunkRenderer::Render(GameContext *c)
 	chunkShader.setMat4("model", glm::translate(glm::mat4(1.0f), camPos));
 	chunkShader.setVec3("plrPos",(glm::vec3)c->plr->pos - camPos);
 
-	
+	std::vector<ChunkPos> transparent;
 	for (int dz = -c->renderDistance; dz < c->renderDistance; dz++){
 	for (int dy = -c->renderDistance; dy < c->renderDistance; dy++){
 	for (int dx = -c->renderDistance; dx < c->renderDistance; dx++){
 		ChunkPos pos = c->plr->chunkPos + ChunkPos{dx,dy,dz};
 		if (!chunkMeshes.contains(pos)) continue;
 		std::shared_ptr<ChunkMesh> mesh = chunkMeshes.at(pos);
+
+		if (mesh->hasTranslucentBlocks()) transparent.push_back(pos);
 		
 		glm::vec3 chunkPos = glm::vec3(
 			pos.x * CHUNK_X_SIZE, 
@@ -342,5 +376,26 @@ void ChunkRenderer::Render(GameContext *c)
 		}
 	}
 	}
+	}
+	glDepthMask(GL_FALSE);
+    glCall(glDisable(GL_CULL_FACE));
+	for (auto& pos : transparent){
+		if (!chunkMeshes.contains(pos)) continue;
+		std::shared_ptr<ChunkMesh> mesh = chunkMeshes.at(pos);
+		
+		glm::vec3 chunkPos = glm::vec3(
+			pos.x * CHUNK_X_SIZE, 
+			pos.y * CHUNK_Y_SIZE, 
+			pos.z * CHUNK_Z_SIZE
+		);
+		glm::vec3 minCorner = chunkPos + camPos;
+		glm::vec3 maxCorner = minCorner + glm::vec3(CHUNK_X_SIZE, CHUNK_Y_SIZE, CHUNK_Z_SIZE);
+
+		if (isChunkVisible(frustumPlanes, minCorner, maxCorner)) {
+			chunkShader.setVec3("chunkPos", chunkPos);
+			mesh->RenderTransparent();
+		} else {
+			continue;
+		}
 	}
 }

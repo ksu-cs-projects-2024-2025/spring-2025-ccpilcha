@@ -5,8 +5,6 @@
  * @version 0.1
  * @date 2025-03-07
  * 
- * @copyright Copyright (c) 2025
- * 
  * This is the manager for the rendering of chunks 
  */
 
@@ -43,42 +41,11 @@ class ChunkRenderer
     std::unique_ptr<ThreadPool> threadPoolP;
 
     std::thread loadThread;
-
-    RenderType ParseRenderType(const std::string& str) {
-        if (str == "Opaque") return RenderType::Opaque;
-        if (str == "Translucent") return RenderType::Translucent;
-        if (str == "Cutout") return RenderType::Cutout;
-        return RenderType::Invisible;
-    }
-    
-    void LoadBlockRegistry(const std::string& path) {
-        std::ifstream in(path);
-        if (!in.is_open()) {
-            std::cerr << "Failed to load block metadata: " << path << "\n";
-            return;
-        }
-    
-        nlohmann::json data;
-        in >> data;
-    
-        for (auto& entry : data["blocks"]) {
-            int id = entry["id"];
-            BlockInfo info;
-            info.name = entry["name"];
-            info.renderType = ParseRenderType(entry["renderType"]);
-            info.emitsLight = entry["emitsLight"];
-            info.isCollidable = entry["isCollidable"];
-            info.hardness = entry["hardness"];
-            if (entry.contains("textureIndices"))
-                info.textureIndices = entry["textureIndices"].get<std::array<int, 6>>();
-            blockRegistry[id] = info;
-        }
-    }
-
-    std::unordered_map<int, BlockInfo> blockRegistry;
     
     World* world;
-    void RenderChunkAt(PrioritizedChunk pos);
+
+    std::pair<std::vector<ChunkVertex>, std::vector<ChunkVertex>> GenerateGreedyMesh(const Chunk &chunk, GameContext *c);
+    void RenderChunkAt(GameContext *c, PrioritizedChunk pos);
     void RenderChunks(GameContext *c);
 public:
     std::atomic<int> chunkGenFrameId = 0;

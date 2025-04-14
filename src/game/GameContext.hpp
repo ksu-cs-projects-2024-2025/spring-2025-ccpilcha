@@ -5,6 +5,7 @@
 #include <string>
 
 #include "gfx/TextureArray.hpp"
+#include "BlockInfo.hpp"
 
 class Player;
 class World;
@@ -36,6 +37,8 @@ struct GameContext {
     int renderDistance; // radius in chunks
 
     SDL_Keycode forward, backward, left, right, up, down, sprint;
+
+    std::unordered_map<int, BlockInfo> blockRegistry;
 
     std::string pathToTextureJSON;
 

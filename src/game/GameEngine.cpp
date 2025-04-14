@@ -54,7 +54,7 @@ SDL_AppResult GameEngine::ChangeState()
         context->world = world;
         // We will want the mouse to be "grabbed"
         SDL_SetWindowRelativeMouseMode(context->window, true);
-        plr.Init(context, ChunkPos()); // TODO: get this to change based on height level
+        plr.Init(context, ChunkPos({-3,-1,12})); // TODO: get this to change based on height level
         world->Init(context);
         gui.Init(context, playGUI);
         break;

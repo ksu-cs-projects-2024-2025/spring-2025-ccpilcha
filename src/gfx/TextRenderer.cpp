@@ -1,4 +1,5 @@
 // TextRenderer.cpp
+// This file was assisted by Copilot
 #include <stb_image.h>
 #include <SDL3_image/SDL_image.h>
 #include "TextRenderer.hpp"

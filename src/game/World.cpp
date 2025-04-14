@@ -4,7 +4,6 @@
  * @brief 
  * @date 2025-03-07
  * 
- * @copyright Copyright (c) 2025
  */
 
 #include "World.hpp"
@@ -129,7 +128,7 @@ void World::TraverseRays(GameContext *c)
     {
         Ray ray;
         if (!rays.try_pop(ray)) continue;
-        BlockFace block = RayTraversal(ray, 0, c->maxBlockDistance);
+        BlockFace block = RayTraversal(c, ray, 0, c->maxBlockDistance);
         if (block.face == -1) continue;
         glm::ivec3 neighbor = block.getNeighbor();
         if (ray.dig)
@@ -139,7 +138,7 @@ void World::TraverseRays(GameContext *c)
     }
 }
 
-BlockFace World::RayTraversal(Ray ray, double tMin, double tMax)
+BlockFace World::RayTraversal(GameContext *c, Ray ray, double tMin, double tMax)
 {
     BlockFace block;
     glm::vec3 ray_start = ray.at(tMin), ray_end = ray.at(tMax);
@@ -176,7 +175,7 @@ BlockFace World::RayTraversal(Ray ray, double tMin, double tMax)
             curPos.x += step.x;
             v_tMax.x += v_tDelta.x;
 
-            if (this->GetBlockId(ray.originC, curPos.x, curPos.y, curPos.z) > 0) {
+            if (c->blockRegistry[this->GetBlockId(ray.originC, curPos.x, curPos.y, curPos.z)].isSelectable) {
                 block = BlockFace({curPos, (step.x == 1) ? 0 : 1});
                 break;
             }
@@ -185,7 +184,7 @@ BlockFace World::RayTraversal(Ray ray, double tMin, double tMax)
             curPos.y += step.y;
             v_tMax.y += v_tDelta.y;
 
-            if (this->GetBlockId(ray.originC, curPos.x, curPos.y, curPos.z) > 0)
+            if (c->blockRegistry[this->GetBlockId(ray.originC, curPos.x, curPos.y, curPos.z)].isSelectable)
             {
                 block = BlockFace({curPos, (step.y == 1) ? 2 : 3});
                 break;
@@ -195,7 +194,7 @@ BlockFace World::RayTraversal(Ray ray, double tMin, double tMax)
             curPos.z += step.z;
             v_tMax.z += v_tDelta.z;
 
-            if (this->GetBlockId(ray.originC, curPos.x, curPos.y, curPos.z) > 0)
+            if (c->blockRegistry[this->GetBlockId(ray.originC, curPos.x, curPos.y, curPos.z)].isSelectable)
             {
                 block = BlockFace({curPos, (step.z == 1) ? 4 : 5});
                 break;
@@ -324,6 +323,8 @@ GLuint quadVAO, quadVBO;
 void World::Init(GameContext *c)
 {
 
+    BlockInfo::LoadBlockRegistry(c->blockRegistry, "assets/textures/texturepack-simple.json");
+
     float quadVertices[] = {
         // positions   // texCoords
         -1.0f,  1.0f,   0.0f, 1.0f,
@@ -444,10 +445,20 @@ void World::OnEvent(GameContext *c, const SDL_Event *event)
  */
 void World::Update(GameContext *c, double deltaTime)
 {
+    
+    if (c->blockRegistry[this->GetBlockId(c->plr->chunkPos, c->plr->pos.x, c->plr->pos.y, c->plr->pos.z)].blockType == BlockType::Water)
+    {
+        c->plr->camera.setFOV(c->fov / 1.16f); // im just going with half the index of refraction
+    } else {
+        c->plr->camera.setFOV(c->fov);
+    }
+
     ImGui::Text("block: (%d, %d, %d)", (int)floor(c->plr->pos.x),(int) floor(c->plr->pos.y), (int)floor(c->plr->pos.z));
-    ImGui::Text("chunk: (%d, %d, %d)", c->plr->chunkPos.x, c->plr->chunkPos.y, c->plr->chunkPos.z); 
+    ImGui::Text("chunk: (%lld, %lld, %lld)", c->plr->chunkPos.x, c->plr->chunkPos.y, c->plr->chunkPos.z); 
+    ImGui::Text("pos:   (%lld, %lld, %lld)", (int)floor(c->plr->pos.x) + CHUNK_X_SIZE * c->plr->chunkPos.x, (int) floor(c->plr->pos.y) + CHUNK_Y_SIZE * c->plr->chunkPos.y, (int)floor(c->plr->pos.z) + CHUNK_Z_SIZE * c->plr->chunkPos.z);
     phase += deltaTime / 2.0f;
     if (phase >= 1.0f) phase -= 1.0f;
+    if (phase2 >= 1.0f) phase2 -= 1.0f;
 
     TraverseRays(c);
 
@@ -505,6 +516,7 @@ void World::Render(GameContext *c)
     }
 
     // RENDER SKY
+	glDepthMask(GL_FALSE);
     glCall(glDisable(GL_DEPTH_TEST));
     glCall(glDisable(GL_CULL_FACE));
     glm::mat4 skyview = glm::lookAt(glm::vec3(0.f), c->plr->camera.forward, c->plr->camera.up);
@@ -521,21 +533,32 @@ void World::Render(GameContext *c)
     renderer.Render(c);
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	glDepthMask(GL_TRUE);
     glDisable(GL_DEPTH_TEST);
 
     // Use post shader
     postShader.use();
+    if (c->blockRegistry[this->GetBlockId(c->plr->chunkPos, c->plr->pos.x, c->plr->pos.y, c->plr->pos.z)].blockType == BlockType::Water)
+    {
+        postShader.setVec3("hint", glm::vec3(0.3f, 0.7f, 1.0f));
+        postShader.setFloat("rippleStrength", 0.002f);
+    } else {
+        postShader.setVec3("hint", glm::vec3(1.0f));
+        postShader.setFloat("rippleStrength", 0.0f);
+    }
     glBindVertexArray(quadVAO);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, fboTexture);
     postShader.setInt("screenTexture", 0);
+    postShader.setFloat("phase", phase * 2.0f * M_PI);
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, fboDepthTexture);
 
     glDrawArrays(GL_TRIANGLES, 0, 6);
 
     // RENDER HIGHLIGHT
-    BlockFace selected = RayTraversal(Ray(c->plr->pos, c->plr->camera.forward, c->plr->chunkPos, false), 0, c->maxBlockDistance);
+    BlockFace selected = RayTraversal(c, Ray(c->plr->pos, c->plr->camera.forward, c->plr->chunkPos, false), 0, c->maxBlockDistance);
     if (selected.face != -1)
     {  
         highlightShader.use();
@@ -553,6 +576,7 @@ void World::Render(GameContext *c)
         highlightMesh.RenderInstanceAuto(GL_TRIANGLE_STRIP, 4, 1);
         
         ImGui::Text("block id: %d", this->GetBlockId(c->plr->chunkPos, selected.pos.x, selected.pos.y, selected.pos.z)); 
+        ImGui::Text("block n:  %s", c->blockRegistry[this->GetBlockId(c->plr->chunkPos, selected.pos.x, selected.pos.y, selected.pos.z)].name.c_str()); 
     }
 
     // RENDER GIZMO
@@ -572,6 +596,7 @@ void World::Render(GameContext *c)
 
 World::~World()
 {
+    /*
     nlohmann::json chunkList;
     chunkList["chunks"] = nlohmann::json::array();
     // for now just save
@@ -587,4 +612,5 @@ World::~World()
 	this->loadThread.join();
     threadPool.reset(); // safely joins threads in ~ThreadPool()
     terrain.reset();
+    */
 }

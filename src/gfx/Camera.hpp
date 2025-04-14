@@ -25,17 +25,17 @@ struct Camera {
 
         model = glm::mat4(1.0f);
         view = glm::mat4(1.0f);
-        proj = glm::perspective(glm::radians(90.f), 1.0f, 0.1f, 1000.0f);
+        proj = glm::perspective(glm::radians(90.f), 1.0f, 0.1f, 2000.0f);
         view = glm::translate(view, glm::vec3(0.0f, -5.0f, 0.0f));
     }
     void setFOV(float fov) {
         this->fov = fov;
-        proj = glm::perspective(glm::radians(fov), aspect, 0.1f, 1000.0f);
+        proj = glm::perspective(glm::radians(fov), aspect, 0.1f, 2000.0f);
     }
     void viewport(float aspect, float fov) {
         this->aspect = aspect;
         this->fov = fov;
-        proj = glm::perspective(glm::radians(fov), aspect, 0.1f, 1000.0f);
+        proj = glm::perspective(glm::radians(fov), aspect, 0.1f, 2000.0f);
     }
     void translate(glm::vec3 pos) {
         view = glm::lookAt(pos, pos + forward, up);

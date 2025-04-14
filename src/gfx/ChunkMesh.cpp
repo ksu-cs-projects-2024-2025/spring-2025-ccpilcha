@@ -15,7 +15,8 @@ std::vector<VertexAttribute> ChunkVertexAttribs = {
 ChunkMesh::ChunkMesh() : 
 	meshMutex(),
 	meshSwapping(true),
-	currentBuffer(&this->bufferA)
+	currentBuffer(&this->bufferA),
+	currentTBuffer(&this->TbufferA)
 {
 }
 
@@ -27,11 +28,13 @@ ChunkMesh::~ChunkMesh()
     if (vao) glCall(glDeleteVertexArrays(1, &vao));
 }
 
-void ChunkMesh::Init(GLuint vao, GLuint vbo)
+void ChunkMesh::Init(GLuint vao, GLuint vbo, GLuint vaoT, GLuint vboT)
 {
 	this->init = true;
 	this->vao = vao;
 	this->vbo = vbo;
+	this->vaoT = vaoT;
+	this->vboT = vboT;
 	glCall(glBindBuffer(GL_ARRAY_BUFFER, this->vbo));
 	glCall(glBindVertexArray(this->vao));
 	int num = 0;
@@ -39,15 +42,25 @@ void ChunkMesh::Init(GLuint vao, GLuint vbo)
 	{
 		vAttrib.Enable(num++);
 	}
+	glCall(glBindBuffer(GL_ARRAY_BUFFER, this->vboT));
+	glCall(glBindVertexArray(this->vaoT));
+	num = 0;
+	for (auto& vAttrib : ChunkVertexAttribs)
+	{
+		vAttrib.Enable(num++);
+	}
 }
 
-void ChunkMesh::Load(std::vector<ChunkVertex> data) {
+void ChunkMesh::Load(std::vector<ChunkVertex> opaque, std::vector<ChunkVertex> translucent) {
     std::lock_guard<std::mutex> lock(meshMutex);
 
-    if (bufferAFlag) 
-		bufferA = std::move(data);
-	else 
-		bufferB = std::move(data);
+    if (bufferAFlag) {
+		bufferA = std::move(opaque);
+		TbufferA = std::move(translucent);
+	} else {
+		bufferB = std::move(opaque);
+		TbufferB = std::move(translucent);
+	}
 
 	loaded.store(true);
 	dirty.store(false);
@@ -65,8 +78,9 @@ void ChunkMesh::Load(std::vector<ChunkVertex> data) {
 void ChunkMesh::Swap() {
     std::lock_guard<std::mutex> lock(meshMutex);
     if (!meshSwapping.load()) return;
-	currentBuffer = bufferAFlag ? &bufferA : &bufferB;
-	bufferAFlag = !bufferAFlag;
+    currentBuffer  = bufferAFlag ? &bufferA : &bufferB;
+    currentTBuffer = bufferAFlag ? &TbufferA : &TbufferB;  // Added swap for translucent buffer
+    bufferAFlag = !bufferAFlag;
 }
 
 void ChunkMesh::Update(GameContext *c)
@@ -89,6 +103,12 @@ void ChunkMesh::UploadToGPU() {
 	glCall(glBindBuffer(GL_ARRAY_BUFFER, this->vbo));
 	glCall(glBindVertexArray(this->vao));
     glCall(glBufferData(GL_ARRAY_BUFFER, currentBuffer->size() * sizeof(ChunkVertex),  currentBuffer->data(), GL_STATIC_DRAW));
+
+	if (currentTBuffer->size() > 0) {
+		glCall(glBindBuffer(GL_ARRAY_BUFFER, this->vboT));
+		glCall(glBindVertexArray(this->vaoT));
+		glCall(glBufferData(GL_ARRAY_BUFFER, currentTBuffer->size() * sizeof(ChunkVertex),  currentTBuffer->data(), GL_STATIC_DRAW));
+	}
 	meshSwapping.store(false);
 	isUploaded = true;
 }
@@ -114,6 +134,17 @@ void ChunkMesh::RenderOpaque()
 
 void ChunkMesh::RenderTransparent()
 {
+	std::lock_guard<std::mutex> lock(this->meshMutex);
+	
+	if (!isUploaded.load()) return;
+	if (this->currentTBuffer->empty()) return;
+
+	this->rendering = true;
+
+	glCall(glBindVertexArray(this->vaoT));
+	glCall(glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, this->currentTBuffer->size()));
+
+	this->rendering = false;
 }
 
 void ChunkMesh::Clear()
