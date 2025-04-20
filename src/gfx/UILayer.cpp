@@ -10,9 +10,32 @@ UILayer::~UILayer()
 {
 }
 
-void UILayer::Init(GameContext *c, std::vector<UIComponent> elements)
+void UILayer::Init(GameContext *c)
+{
+    textRenderer.Init(c);
+    guiShader.Init(c);
+    guiMesh.Init(c);
+    textRenderer.LoadGlyphsFromJson("assets/fonts/atlas.json");
+    textRenderer.LoadFontTexture("assets/fonts/atlas.png");
+}
+
+void UILayer::Swap(std::vector<UIComponent> elements)
 {
     this->elements = std::move(elements);
+    textRenderer.Clear();
+
+    for (auto &elem : this->elements)
+    {
+
+        glm::vec2 buttonSize = elem.radius;
+        glm::vec2 textSize = textRenderer.MeasureText(elem.text);
+    
+        // Fit by width and height (maintain aspect ratio)
+        float scaleX = buttonSize.x / textSize.x;
+        float scaleY = buttonSize.y / textSize.y;
+        float scale = std::min(scaleX, scaleY); // ensures text fits *within* box
+        textRenderer.SetText(elem.text, elem.origin, elem.textAnchor, scale);
+    }
 }
 
 void UILayer::OnEvent(GameContext *c, const SDL_Event *event)
@@ -57,6 +80,7 @@ void UILayer::Render(GameContext *c)
     int w, h;
     SDL_GetWindowSizeInPixels(c->window, &w, &h);
     guiShader.setVec2("screenSize", glm::vec2(w, h));
+
     for (const auto &elem : elements)
     {
         guiShader.setVec2("origin", elem.origin);

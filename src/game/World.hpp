@@ -47,8 +47,8 @@ class World {
 
     Shader gizmoShader, skyShader, highlightShader, postShader;
     Mesh gizmoMesh, skyMesh, highlightMesh;
-    ChunkRenderer renderer;
-    std::shared_ptr<Terrain> terrain;
+    std::unique_ptr<ChunkRenderer> renderer;
+    std::unique_ptr<Terrain> terrain;
     std::thread loadThread;
     std::unique_ptr<PriorityThreadPool> threadPool;
     std::atomic<bool> loadSignal{false};

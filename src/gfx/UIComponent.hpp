@@ -2,7 +2,7 @@
 
 #include <glad/glad.h>
 #include <glm/glm.hpp>
-#include <string>
+#include <xstring>
 
 struct UIComponent {
     // Geometry
@@ -16,7 +16,8 @@ struct UIComponent {
     glm::vec4 highlightColor;
     
     // Content
-    std::string text;
+    std::u32string text;
+    glm::vec2 textAnchor;
     GLuint texturebg;
     GLuint texturefg;
     

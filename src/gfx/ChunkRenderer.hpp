@@ -25,7 +25,7 @@
 #include "VertexAttribute.hpp"
 #include "ChunkMesh.hpp"
 #include "ChunkVertex.hpp"
-#include "BlockInfo.hpp"
+#include "game/BlockInfo.hpp"
 #include "Shader.hpp"
 
 class World;
@@ -58,6 +58,7 @@ public:
     tbb::concurrent_unordered_map<ChunkPos, std::shared_ptr<ChunkMesh>> chunkMeshes;
     std::mutex queueRenderMutex;
     std::condition_variable queueCV;
+    bool loadSignal = false;
     ChunkRenderer(World*);
     ~ChunkRenderer();
     bool IsLoaded(ChunkPos pos);

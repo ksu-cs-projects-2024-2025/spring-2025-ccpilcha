@@ -21,7 +21,8 @@ public:
     TextRenderer textRenderer;
     UILayer();
     ~UILayer();
-    void Init(GameContext* c, std::vector<UIComponent> elements);
+    void Init(GameContext* c);
+    void Swap(std::vector<UIComponent> elements);
     void OnEvent(GameContext *c, const SDL_Event *event);
     void Update(GameContext* c, double deltaTime);
     void Render(GameContext* c);

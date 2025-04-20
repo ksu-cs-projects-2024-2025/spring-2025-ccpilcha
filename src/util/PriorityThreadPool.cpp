@@ -1,4 +1,5 @@
 #include "PriorityThreadPool.hpp"
+#include <iostream>
 
 /**
  * @brief Construct a new Thread Pool:: Thread Pool object
@@ -20,10 +21,12 @@ PriorityThreadPool::~PriorityThreadPool() {
         std::unique_lock<std::mutex> lock(queueMutex);
         stop = true;
     }
+    std::cout << "Stopping pthread pool" << std::endl;
     condition.notify_all();
     for (std::thread &worker : workers) {
         worker.join();
     }
+    std::cout << "PThread pool stopped" << std::endl;
 }
 
 /**
@@ -46,7 +49,7 @@ void PriorityThreadPool::workerThread() {
             std::unique_lock<std::mutex> lock(queueMutex);
             condition.wait(lock, [this] { return stop || !tasks.empty(); });
 
-            if (stop && tasks.empty()) return;
+            if (stop) return;
 
             task = std::move(tasks.top());
             tasks.pop();

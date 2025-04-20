@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <string>
 #include <vector>
+#include <xstring>
 #include "Shader.hpp"
 #include "game/GameContext.hpp"
 
@@ -27,13 +28,16 @@ class TextRenderer {
     };
 
     std::vector<InstanceData> instances;
-    std::unordered_map<char, Glyph> glyphs;
+    std::unordered_map<char32_t, Glyph> glyphs;
 
     unsigned int VAO, VBO, instanceVBO;
     unsigned int textureID;
     unsigned int screenWidth, screenHeight;
 
-    std::string currentText;
+    float emSize;
+    float ascender;
+
+    std::u32string currentText;
     glm::vec2 basePosition;
     float currentScale;
 
@@ -48,6 +52,7 @@ public:
 
     void LoadFontTexture(const std::string& filepath);
     bool LoadGlyphsFromJson(const std::string& path);
-    void SetText(const std::string& text, glm::vec2 pos, float scale);
-    
+    void SetText(const std::u32string& text, glm::vec2 pos, glm::vec2 anchor,  float scale);
+    void Clear() {instances.clear();}
+    glm::vec2 MeasureText(const std::u32string& text);
 };

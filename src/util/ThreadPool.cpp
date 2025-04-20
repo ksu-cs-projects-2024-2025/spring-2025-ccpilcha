@@ -1,4 +1,5 @@
 #include "ThreadPool.hpp"
+#include <iostream>
 
 /**
  * @brief Construct a new Thread Pool:: Thread Pool object
@@ -20,10 +21,12 @@ ThreadPool::~ThreadPool() {
         std::unique_lock<std::mutex> lock(queueMutex);
         stop = true;
     }
+    std::cout << "Stopping thread pool" << std::endl;
     condition.notify_all();
     for (std::thread &worker : workers) {
         worker.join();
     }
+    std::cout << "Thread pool stopped" << std::endl;
 }
 
 /**
@@ -46,7 +49,7 @@ void ThreadPool::workerThread() {
             std::unique_lock<std::mutex> lock(queueMutex);
             condition.wait(lock, [this] { return stop || !tasks.empty(); });
 
-            if (stop && tasks.empty()) return;
+            if (stop) return;
 
             task = std::move(tasks.front());
             tasks.pop();

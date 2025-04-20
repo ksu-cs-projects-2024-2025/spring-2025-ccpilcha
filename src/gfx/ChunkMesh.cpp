@@ -22,10 +22,6 @@ ChunkMesh::ChunkMesh() :
 
 ChunkMesh::~ChunkMesh()
 {
-    std::lock_guard<std::mutex> lock(meshMutex);
-
-    if (vbo) glCall(glDeleteBuffers(1, &vbo));
-    if (vao) glCall(glDeleteVertexArrays(1, &vao));
 }
 
 void ChunkMesh::Init(GLuint vao, GLuint vbo, GLuint vaoT, GLuint vboT)
@@ -100,14 +96,24 @@ void ChunkMesh::UploadToGPU() {
 
     std::lock_guard<std::mutex> lock(meshMutex);
 
-	glCall(glBindBuffer(GL_ARRAY_BUFFER, this->vbo));
-	glCall(glBindVertexArray(this->vao));
-    glCall(glBufferData(GL_ARRAY_BUFFER, currentBuffer->size() * sizeof(ChunkVertex),  currentBuffer->data(), GL_STATIC_DRAW));
+	if (currentBuffer->size() > 0) {
+		GLsizei wanted = GLsizei(currentBuffer->size() * sizeof(ChunkVertex));
+		GLsizei padded = wanted + sizeof(uint32_t);
+		glCall(glBindBuffer(GL_ARRAY_BUFFER, this->vbo));
+		glCall(glBindVertexArray(this->vao));
+		glCall(glBufferData(GL_ARRAY_BUFFER, padded, nullptr, GL_STATIC_DRAW));
+
+		glBufferSubData(GL_ARRAY_BUFFER, 0, wanted, currentBuffer->data());
+	}
 
 	if (currentTBuffer->size() > 0) {
+		GLsizei wanted = GLsizei(currentTBuffer->size() * sizeof(ChunkVertex));
+		GLsizei padded = wanted + sizeof(uint32_t);
 		glCall(glBindBuffer(GL_ARRAY_BUFFER, this->vboT));
 		glCall(glBindVertexArray(this->vaoT));
-		glCall(glBufferData(GL_ARRAY_BUFFER, currentTBuffer->size() * sizeof(ChunkVertex),  currentTBuffer->data(), GL_STATIC_DRAW));
+		glCall(glBufferData(GL_ARRAY_BUFFER, padded, nullptr, GL_STATIC_DRAW));
+
+		glBufferSubData(GL_ARRAY_BUFFER, 0, wanted, currentTBuffer->data());
 	}
 	meshSwapping.store(false);
 	isUploaded = true;
@@ -127,7 +133,7 @@ void ChunkMesh::RenderOpaque()
 	this->rendering = true;
 
 	glCall(glBindVertexArray(this->vao));
-	glCall(glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, this->currentBuffer->size()));
+	glCall(glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, (GLsizei)this->currentBuffer->size()));
 
 	this->rendering = false;
 }
@@ -142,7 +148,7 @@ void ChunkMesh::RenderTransparent()
 	this->rendering = true;
 
 	glCall(glBindVertexArray(this->vaoT));
-	glCall(glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, this->currentTBuffer->size()));
+	glCall(glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, (GLsizei)this->currentTBuffer->size()));
 
 	this->rendering = false;
 }

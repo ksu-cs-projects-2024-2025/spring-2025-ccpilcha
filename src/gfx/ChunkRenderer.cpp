@@ -106,6 +106,7 @@ void ChunkRenderer::RenderChunkAt(GameContext *c, PrioritizedChunk pChunk)
 	for (int z = 0; z < chunk->size(); z++) {
 	for (int y = 0; y < CHUNK_Y_SIZE; y++) {
 	for (int x = 0; x < CHUNK_X_SIZE; x++) {
+		if (c->isClosing) return;
 		BLOCK_ID_TYPE blockId = chunk->GetBlockId(x,y,z);
 		BlockInfo blockInfo = c->blockRegistry[blockId];
 		if (blockId <= 0) continue;
@@ -116,7 +117,7 @@ void ChunkRenderer::RenderChunkAt(GameContext *c, PrioritizedChunk pChunk)
 
 			BlockInfo n = c->blockRegistry.at(this->world->GetBlockId(pos, nx, ny, nz));
 			// now we have to calculate AO
-			uint8_t aoByte = 0;
+			int8_t aoByte = 0;
 			bool bothWater = blockInfo.blockType == BlockType::Water && n.blockType == BlockType::Water;
 			bool waterNextToAir = blockInfo.blockType == BlockType::Water && n.blockType == BlockType::Air;
 			
@@ -142,7 +143,7 @@ void ChunkRenderer::RenderChunkAt(GameContext *c, PrioritizedChunk pChunk)
 										y + aoOffsets[face][corner][2][1],
 										z + aoOffsets[face][corner][2][2])).IsTranslucent();
 
-				uint8_t ao = (side1 && side2) ? 0 : 3 - (side1 + side2 + cornerBlock);
+				int8_t ao = (side1 && side2) ? 0 : 3 - (side1 + side2 + cornerBlock);
 				aoByte |= (ao << (corner * 2));
 			}
 
@@ -174,7 +175,7 @@ void ChunkRenderer::RenderChunks(GameContext *c)
     {
         {
             std::unique_lock<std::mutex> lock(queueRenderMutex);
-            queueCV.wait(lock, [this, c] { return !c->isClosing || !chunkRenderQueue.empty(); });
+            queueCV.wait(lock, [this, c] { return c->isClosing || !chunkRenderQueue.empty(); });
 
 			if (c->isClosing) return;
         }
@@ -222,17 +223,20 @@ ChunkRenderer::ChunkRenderer(World *w) :
 	world(w), 
 	chunkShader("assets/shaders/game/chunk.v.glsl", "assets/shaders/game/chunk.f.glsl"), 
 	chunkMeshes(), 
-	threadPool(std::make_unique<ThreadPool>(16)),
-	threadPoolP(std::make_unique<ThreadPool>(8))
+	threadPool(std::make_unique<ThreadPool>(8)),
+	threadPoolP(std::make_unique<ThreadPool>(4))
 {
 
 }
 
 ChunkRenderer::~ChunkRenderer()
 {
+	std::cout << "deleting chunk renderer\n";
+	queueCV.notify_all();  // 🚨 Wake up any threads blocked on queueCV
 	this->loadThread.join();
     threadPool.reset(); // safely joins threads in ~ThreadPool()
 	threadPoolP.reset();
+	std::cout << "done";
 }
 
 bool ChunkRenderer::IsLoaded(ChunkPos pos)
@@ -243,6 +247,7 @@ bool ChunkRenderer::IsLoaded(ChunkPos pos)
 void ChunkRenderer::Init(GameContext *c)
 {
 
+	chunkShader.Init(c);
     this->loadThread = std::thread(&ChunkRenderer::RenderChunks, this, c);
 
 }
@@ -266,21 +271,30 @@ void ChunkRenderer::Update(GameContext *c, double deltaTime)
 			meshes.push_back(meshPair.second);
 	}
 
-	GLuint* vao = new GLuint[meshes.size()];
-	GLuint* vbo = new GLuint[meshes.size()];
-	glCall(glGenBuffers(meshes.size(), vbo));
-	glCall(glGenVertexArrays(meshes.size(), vao));
+	if (!meshes.empty())
+	{
+		GLuint* vao = new GLuint[meshes.size()];
+		GLuint* vbo = new GLuint[meshes.size()];
+		glCall(glGenBuffers(meshes.size(), vbo));
+		glCall(glGenVertexArrays(meshes.size(), vao));
+	
+		GLuint* vaoT = new GLuint[meshes.size()];
+		GLuint* vboT = new GLuint[meshes.size()];
+		glCall(glGenBuffers(meshes.size(), vboT));
+		glCall(glGenVertexArrays(meshes.size(), vaoT));
+		int i = 0;
+		for(auto mesh : meshes) {
+			mesh->Init(vao[i], vbo[i], vaoT[i], vboT[i]);
+			i++;
+		};
 
-	GLuint* vaoT = new GLuint[meshes.size()];
-	GLuint* vboT = new GLuint[meshes.size()];
-	glCall(glGenBuffers(meshes.size(), vboT));
-	glCall(glGenVertexArrays(meshes.size(), vaoT));
-	int i = 0;
-	for(auto mesh : meshes) {
-		mesh->Init(vao[i], vbo[i], vaoT[i], vboT[i]);
-		i++;
-	};
-
+		c->glCleanupQueue.emplace([=]() {
+			glCall(glDeleteBuffers(meshes.size(), vbo));
+			glCall(glDeleteVertexArrays(meshes.size(), vao));
+			glCall(glDeleteBuffers(meshes.size(), vboT));
+			glCall(glDeleteVertexArrays(meshes.size(), vaoT));
+		});
+	}
 
     for (int i = 0; i < std::min((size_t)10, chunkRemoveQueue.unsafe_size()); i++)
     {

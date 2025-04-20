@@ -20,7 +20,7 @@ enum class BlockType {
     Dirt,
     Stone,
     Sand,
-    WoodLog,
+    Wood,
     Leaves,
     Water
 };

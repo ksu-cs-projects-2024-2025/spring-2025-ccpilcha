@@ -3,6 +3,10 @@
 #include <SDL3/SDL_keycode.h>
 #include <SDL3/SDL.h>
 #include <string>
+#include <mutex>
+#include <queue>
+#include <functional>
+
 
 #include "gfx/TextureArray.hpp"
 #include "BlockInfo.hpp"
@@ -20,7 +24,7 @@ class World;
  */
 struct GameContext {
     bool isFocused = true;
-    bool isClosing = false;
+    std::atomic<bool> isClosing = false;
     SDL_Window *window;
     Player *plr;
     World *world;
@@ -42,6 +46,9 @@ struct GameContext {
 
     std::string pathToTextureJSON;
 
+    std::mutex glCleanupMutex;
+    std::queue<std::function<void()>> glCleanupQueue;
+
     enum GameState {
         GAME_STATE_MENU,
         GAME_STATE_PLAYING,
@@ -60,7 +67,7 @@ struct GameContext {
 
         moveSpeed = 20.f;
 
-        renderDistance = 32;
+        renderDistance = 16;
         maxBlockDistance = 10.0f;
 
         forward = SDLK_W;

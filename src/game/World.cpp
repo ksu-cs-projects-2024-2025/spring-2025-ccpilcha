@@ -9,6 +9,7 @@
 #include "World.hpp"
 #include <unordered_set>
 #include <imgui.h>
+#include <cmath>
 
 #include <thread>
 
@@ -22,23 +23,14 @@
  */
 bool World::AreAllNeighborsLoaded(const ChunkPos &pos)
 {
-    // Define neighbor offsets (adjust if you need more than 6 directions)
-    constexpr std::array<ChunkPos, 6> neighborOffsets = {{
-        ChunkPos{-1,  0,  0},
-        ChunkPos{ 1,  0,  0},
-        ChunkPos{ 0, -1,  0},
-        ChunkPos{ 0,  1,  0},
-        ChunkPos{ 0,  0, -1},
-        ChunkPos{ 0,  0,  1}
-    }};
-    
-    // Check each neighbor using atomic flag or safe retrieval of shared_ptr.
-    for (const auto &offset : neighborOffsets) {
-        ChunkPos neighborPos = pos + offset;
-        if (!ChunkLoaded(neighborPos)) {
+    for (int dx = -1; dx <= 1; ++dx) {
+    for (int dy = -1; dy <= 1; ++dy) {
+    for (int dz = -1; dz <= 1; ++dz) {
+        if (dx == 0 && dy == 0 && dz == 0) continue;
+        ChunkPos neighbor = pos + ChunkPos{dx, dy, dz};
+        if (!this->ChunkLoaded(neighbor))
             return false;
-        }
-    }
+    }}}
     return true;
 }
 
@@ -56,7 +48,8 @@ BLOCK_ID_TYPE World::GetBlockId(const ChunkPos &pos, int x, int y, int z)
     // make sure this is a proper bound for a chunk
     ChunkPos adjusted = ChunkPos::adjust(pos, x, y, z);
 
-    if (!ChunkLoaded(adjusted)) return 0;  // Ensure chunk is valid
+    if (!ChunkLoaded(adjusted)) 
+        return 0;  // Ensure chunk is valid
 
     BLOCK_ID_TYPE block = chunks.at(adjusted)->GetBlockId(x,y,z);
 
@@ -105,15 +98,21 @@ void World::SetBlockId(const ChunkPos &pos, int x, int y, int z, BLOCK_ID_TYPE i
                     if ((nx > 0 && nx < CHUNK_X_SIZE - 1) &&
                         (ny > 0 && ny < CHUNK_Y_SIZE - 1) &&
                         (nz > 0 && nz < CHUNK_Z_SIZE - 1)) continue;
-                    renderer.chunkRenderQueue.push({neighborChunk, false, id != 0 ? -1 : std::numeric_limits<float>::lowest()});
+                    
+                    renderer->chunkRenderQueue.push({neighborChunk, false, id != 0 ? -1 : std::numeric_limits<float>::lowest()});
                 }
             }
         }
     }
 
-    renderer.chunkRenderQueue.push({adjusted, id == 0, id == 0 ? -1 : std::numeric_limits<float>::lowest()});
+    renderer->chunkRenderQueue.push({adjusted, id == 0, id == 0 ? -1 : std::numeric_limits<float>::lowest()});
     
-    renderer.queueCV.notify_one();
+    
+    {
+        std::lock_guard<std::mutex> lock(renderer->queueRenderMutex);
+        renderer->loadSignal = true;
+    }
+    renderer->queueCV.notify_one();
 }
 
 /**
@@ -213,7 +212,7 @@ void World::LoadChunks(GameContext *c)
 {
     // Here we need to load the modified chunks
     ChunkPos pPos = c->plr->chunkPos;
-
+/*
     std::ifstream in("chunk.json");
     if (in.is_open()) {
 
@@ -229,17 +228,22 @@ void World::LoadChunks(GameContext *c)
                 this->chunks[pos] = std::make_shared<Chunk>();
             this->chunks.at(pos)->Load_RLE(rle);
             this->modified.insert(pos);
-            renderer.chunkRenderQueue.push({pos, 0});
-            renderer.queueCV.notify_one();
+            
+            {
+                std::lock_guard<std::mutex> lock(renderer->queueRenderMutex);
+                renderer->loadSignal = true;
+            }
+            renderer->chunkRenderQueue.push({pos, 0});
+            renderer->queueCV.notify_one();
         }
         
-    }
+    }*/
 
-    while (!c->isClosing)
+    while (true)
     {
         {
             std::unique_lock<std::mutex> lock(queueLoadMutex);
-            queueCV.wait(lock, [this, c] { return !c->isClosing || loadSignal; });
+            queueCV.wait(lock, [this, c] { return c->isClosing || loadSignal; });
 
             if (c->isClosing) return;  // Exit thread when game ends
 
@@ -257,7 +261,7 @@ void World::LoadChunks(GameContext *c)
             if (x >= c->renderDistance * 1.5 || y >= c->renderDistance * 1.5 || z >= c->renderDistance * 1.5) {
                 cptr->removing = true;
                 chunkRemoveQueue.push(pos);
-                this->renderer.chunkRemoveQueue.push(pos);
+                this->renderer->chunkRemoveQueue.push(pos);
             }
         }
 
@@ -278,7 +282,7 @@ void World::LoadChunks(GameContext *c)
                 if (ChunkReady(nPos)) {
                     if (!this->chunks.at(nPos)->loaded.load())
                     {
-                        std::vector<CHUNK_DATA> data = this->terrain->generateChunk(nPos);            
+                        auto [visible, data] = this->terrain->generateChunk(nPos);            
                         this->chunks.at(nPos)->visible = this->terrain->getVisibilityFlags(nPos);
                         this->chunks.at(nPos)->Load(data);
                         this->chunks.at(nPos)->loaded.store(true); 
@@ -286,8 +290,12 @@ void World::LoadChunks(GameContext *c)
                     if (this->chunks.at(nPos)->visible == 0) return;
                     if (!this->chunks.at(nPos)->IsEmpty())
                     {
-                        renderer.chunkRenderQueue.push({nPos, false, (float)nPos.distance(pPos)});
-                        renderer.queueCV.notify_one();
+                        {
+                            std::lock_guard<std::mutex> lock(renderer->queueRenderMutex);
+                            renderer->loadSignal = true;
+                        }
+                        renderer->chunkRenderQueue.push({nPos, false, (float)nPos.distance(pPos)});
+                        renderer->queueCV.notify_one();
                         // we should then queue another thread responsible for loading chunk vertex data
                     }
                     if (this->chunks.at(nPos)->pos != nPos) {
@@ -302,9 +310,9 @@ void World::LoadChunks(GameContext *c)
 }
 
 World::World() : 
-    terrain(std::make_shared<Terrain>()), 
+    terrain(std::make_unique<Terrain>()), 
     chunks(), 
-    renderer(this),
+    renderer(std::make_unique<ChunkRenderer>(this)),
     threadPool(std::make_unique<PriorityThreadPool>(16)),
     gizmoShader("assets/shaders/game/gizmo.v.glsl", "assets/shaders/game/gizmo.g.glsl", "assets/shaders/game/gizmo.f.glsl"),
 	skyShader("assets/shaders/game/sky.v.glsl", "assets/shaders/game/sky.f.glsl"),
@@ -322,8 +330,17 @@ GLuint quadVAO, quadVBO;
  */
 void World::Init(GameContext *c)
 {
+    c->texture.Init(c);
+    gizmoShader.Init(c);
+    skyShader.Init(c);
+    highlightShader.Init(c);
+    postShader.Init(c);
+    skyMesh.Init(c);
+    gizmoMesh.Init(c);
+    highlightMesh.Init(c);
 
     BlockInfo::LoadBlockRegistry(c->blockRegistry, "assets/textures/texturepack-simple.json");
+
 
     float quadVertices[] = {
         // positions   // texCoords
@@ -375,6 +392,14 @@ void World::Init(GameContext *c)
     }
     
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    c->glCleanupQueue.emplace([=]() {
+        glCall(glDeleteVertexArrays(1, &quadVAO));
+        glCall(glDeleteBuffers(1, &quadVBO));
+        glCall(glDeleteFramebuffers(1, &fbo));
+        glCall(glDeleteTextures(1, &fboTexture));
+        glCall(glDeleteTextures(1, &fboDepthTexture));
+    });
     
     // Run this algorithm once
     std::unordered_set<ChunkPos> checkPos;
@@ -393,7 +418,7 @@ void World::Init(GameContext *c)
     }
 
     terrain->seed = c->seed;
-    renderer.Init(c);
+    renderer->Init(c);
     this->chunks.reserve(10000);
     // TODO: create thread which works on generating the world
     this->loadThread = std::thread(&World::LoadChunks, this, c);
@@ -445,7 +470,7 @@ void World::OnEvent(GameContext *c, const SDL_Event *event)
  */
 void World::Update(GameContext *c, double deltaTime)
 {
-    
+    if (c->isClosing) return; // Exit if game is closing
     if (c->blockRegistry[this->GetBlockId(c->plr->chunkPos, c->plr->pos.x, c->plr->pos.y, c->plr->pos.z)].blockType == BlockType::Water)
     {
         c->plr->camera.setFOV(c->fov / 1.16f); // im just going with half the index of refraction
@@ -467,7 +492,7 @@ void World::Update(GameContext *c, double deltaTime)
     // check which chunks need to be loaded
     if (c->plr->chunkPos != c->plr->lastPos)
     {
-        renderer.chunkGenFrameId.fetch_add(1, std::memory_order_relaxed);
+        renderer->chunkGenFrameId.fetch_add(1, std::memory_order_relaxed);
         {
             std::lock_guard<std::mutex> lock(queueLoadMutex);
             loadSignal = true;
@@ -492,7 +517,7 @@ void World::Update(GameContext *c, double deltaTime)
     }
 
     // needs to be aware of the chunks which are queued for render
-    renderer.Update(c, deltaTime);
+    renderer->Update(c, deltaTime);
 }
 
 bool World::ChunkReady(const ChunkPos &pos)
@@ -530,7 +555,7 @@ void World::Render(GameContext *c)
 
     
     // RENDER WORLD
-    renderer.Render(c);
+    renderer->Render(c);
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
@@ -551,7 +576,7 @@ void World::Render(GameContext *c)
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, fboTexture);
     postShader.setInt("screenTexture", 0);
-    postShader.setFloat("phase", phase * 2.0f * M_PI);
+    postShader.setFloat("phase", phase * 2.0f * SDL_PI_F);
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, fboDepthTexture);
 
@@ -596,7 +621,6 @@ void World::Render(GameContext *c)
 
 World::~World()
 {
-    /*
     nlohmann::json chunkList;
     chunkList["chunks"] = nlohmann::json::array();
     // for now just save
@@ -609,8 +633,7 @@ World::~World()
     std::ofstream out("chunk.json");
     out << chunkList.dump();
 
-	this->loadThread.join();
-    threadPool.reset(); // safely joins threads in ~ThreadPool()
-    terrain.reset();
-    */
+    this->threadPool.reset();
+    queueCV.notify_all();
+    this->loadThread.join();
 }

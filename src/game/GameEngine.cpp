@@ -15,7 +15,8 @@ gui()
     int w, h;
     SDL_GetWindowSizeInPixels(c->window, &w, &h);
     UIComponent startButton;
-    startButton.text = "PLAY";
+    startButton.text = U"PLAY";
+    startButton.textAnchor = glm::vec2(0.5f, 0.5f);
     startButton.origin = glm::vec2(w/2, h/2);
     startButton.radius = glm::vec2(400.f, 100.f);
     startButton.borderWidth = 20.f;
@@ -35,7 +36,7 @@ GameEngine::~GameEngine()
 
 SDL_AppResult GameEngine::Init() 
 {
-
+    gui.Init(context);
     return this->ChangeState();
 }
 
@@ -46,7 +47,7 @@ SDL_AppResult GameEngine::ChangeState()
     case MENU:
         // We will want the mouse to be "grabbed"
         SDL_SetWindowRelativeMouseMode(context->window, false);
-        gui.Init(context, menuGUI);
+        gui.Swap(menuGUI);
         break;
     case PLAY:
         this->world = new World();
@@ -56,7 +57,7 @@ SDL_AppResult GameEngine::ChangeState()
         SDL_SetWindowRelativeMouseMode(context->window, true);
         plr.Init(context, ChunkPos({-3,-1,12})); // TODO: get this to change based on height level
         world->Init(context);
-        gui.Init(context, playGUI);
+        gui.Swap(playGUI);
         break;
     }
     return SDL_APP_CONTINUE;

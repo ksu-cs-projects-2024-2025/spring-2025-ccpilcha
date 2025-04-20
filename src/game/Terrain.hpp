@@ -15,6 +15,8 @@ struct Terrain {
     Terrain();
     ~Terrain();
     std::vector<float> generateHeightMap(ChunkPos pos);
-    uint16_t getVisibilityFlags(ChunkPos pos);
-    std::vector<CHUNK_DATA> generateChunk(ChunkPos pos);
+    std::vector<float> generateStoneHeightMap(ChunkPos pos);
+    std::vector<bool> generateCaves(ChunkPos pos);
+    bool getVisibilityFlags(ChunkPos pos);
+    std::pair<bool, std::vector<CHUNK_DATA>> generateChunk(ChunkPos pos);
 };

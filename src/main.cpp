@@ -41,6 +41,10 @@ static Uint64   then = 0;       // The previous timestamp from the last game loo
 static Uint64   frequency;      // Precision of the time counter
 static int      frameCount = 0; // Keeps track off the nth frame
 
+std::thread closeThread;
+std::atomic<bool> doneClosing = false;
+std::atomic<bool> notClosing = true;
+
 // Runs at start up
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
 {
@@ -114,6 +118,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
 
     SDL_GL_MakeCurrent(window, G_OpenGL_CONTEXT);
     SDL_SetCurrentThreadPriority(SDL_THREAD_PRIORITY_HIGH);
+    SDL_SetHint(SDL_HINT_MOUSE_RELATIVE_WARP_MOTION, "0");
     
     // Now we can start using OpenGL
 
@@ -156,11 +161,21 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
     return SDL_APP_CONTINUE;
 }
 
+void Exit()
+{
+    // TODO: make sure everything get saved!
+    delete game;
+    delete context;
+
+    doneClosing = true;
+}
+
 // Runs when a new event (mouse input, keypresses, etc) occurs. This is on a separate thread!
 SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
 {
     if (event->type == SDL_EVENT_QUIT) {
-        return SDL_APP_SUCCESS;  /* end the program, reporting success to the OS. */
+        context->isClosing = true;
+        return SDL_APP_CONTINUE;  /* end the program, reporting success to the OS. */
     }
 
     // Allow the OpenGL viewport to automatically resize with respect to the window
@@ -179,13 +194,14 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
         context->aspectRatio = (float) event->window.data1 / (float) event->window.data2;
         glViewport(0, 0, event->window.data1, event->window.data2);
     }
-    
+    if (context->isClosing) return SDL_APP_CONTINUE;
     return game->OnEvent(event);
 }
 
 // The game loop
 SDL_AppResult SDL_AppIterate(void *appstate)
 {
+
     Uint64 now = SDL_GetPerformanceCounter();
     Uint64 frameStart = SDL_GetTicks();
     // This calculates the amount of time between the last frame and the current frame
@@ -208,18 +224,44 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplSDL3_NewFrame();
     ImGui::NewFrame();
-
-    // 4. Draw ImGui stuff
-    ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Always);
-    ImGui::Begin("Debug stuff :p", NULL, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize);
-    ImGui::Text("FPS: %3.3f", rawFPS);
     
-    // We need to update before we render
-    game->Update(deltaTime);
-    game->Render();
 
-    // 5. Render ImGui on top
-    ImGui::End();
+    if (context->isClosing) {
+        if (notClosing)
+        {
+            notClosing = false;
+            closeThread = std::thread(&Exit);
+        }
+        if (doneClosing){
+            closeThread.join();
+            return SDL_APP_SUCCESS;
+        }
+        // 4. Draw ImGui stuff
+        ImGui::Begin("Centered Text");
+
+        const char* text = "Saving world. Please wait...";
+        ImVec2 windowSize = ImGui::GetWindowSize();
+        float textWidth = ImGui::CalcTextSize(text).x;
+
+        // Center horizontally
+        ImGui::SetCursorPosX((windowSize.x - textWidth) * 0.5f);
+        ImGui::Text("%s", text);
+
+        ImGui::End();
+    } else {
+
+        // 4. Draw ImGui stuff
+        ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Always);
+        ImGui::Begin("Debug stuff :p", NULL, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize);
+        ImGui::Text("FPS: %3.3f", rawFPS);
+        
+        // We need to update before we render
+        game->Update(deltaTime);
+        game->Render();
+
+        // 5. Render ImGui on top
+        ImGui::End();
+    }
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
@@ -229,7 +271,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 
     if (frameTime < targetDelay)
         SDL_Delay(targetDelay - frameTime);
-
+    
     SDL_GL_SwapWindow(window);
     return SDL_APP_CONTINUE;
 }
@@ -237,8 +279,10 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 // This function runs once at shutdown.
 void SDL_AppQuit(void *appstate, SDL_AppResult result)
 {
-    context->isClosing = true;
-    // TODO: make sure everything get saved!
-    delete game;
-    delete context;
+
+        // after running == false
+    // destroy GL context
+    SDL_GL_DestroyContext(G_OpenGL_CONTEXT);
+    // destroy window
+    SDL_DestroyWindow(window);
 }

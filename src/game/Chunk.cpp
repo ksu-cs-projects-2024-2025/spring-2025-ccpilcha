@@ -19,7 +19,7 @@ void Chunk::Init(GameContext *c)
 
 bool Chunk::IsEmpty()
 {
-    return blocks.empty();
+    return blocks.size() == 0;
 }
 
 void Chunk::Load(std::vector<CHUNK_DATA> data)

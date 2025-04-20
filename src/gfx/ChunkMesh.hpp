@@ -4,6 +4,7 @@
 #include <oneapi/tbb/concurrent_vector.h>
 #include <thread>
 #include <mutex>
+#include <vector>
 
 #include "ChunkVertex.hpp"
 #include "../game/Chunk.hpp"

@@ -4,14 +4,21 @@
 
 Mesh::Mesh()
 {
-    glCall(glGenVertexArrays(1, &this->vao));
-    glCall(glGenBuffers(1, &this->vbo));
 }
 
 Mesh::~Mesh()
 {
-    glCall(glDeleteVertexArrays(1, &this->vao));
-    glCall(glDeleteBuffers(1, &this->vbo));
+}
+
+void Mesh::Init(GameContext *c)
+{
+    glCall(glGenVertexArrays(1, &this->vao));
+    glCall(glGenBuffers(1, &this->vbo));
+
+    c->glCleanupQueue.emplace([=]() {
+        glCall(glDeleteVertexArrays(1, &this->vao));
+        glCall(glDeleteBuffers(1, &this->vbo));
+    });
 }
 
 void Mesh::SetData(const void *data, GLsizei size)

@@ -7,9 +7,9 @@ file(GLOB_RECURSE SRC_FILES CONFIGURE_DEPENDS
 add_library(core STATIC ${SRC_FILES})
 target_include_directories(core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(core PUBLIC
-    SDL3::SDL3-static
-    SDL3_image::SDL3_image-static
-    SDL3_ttf::SDL3_ttf-static
+    SDL3::SDL3
+    SDL3_image::SDL3_image
+    SDL3_ttf::SDL3_ttf
     glad::glad
     glm::glm
     TBB::tbb
@@ -24,9 +24,9 @@ list(FILTER SRC_FILES EXCLUDE REGEX "main\\.cpp$")
 add_library(core_testing STATIC ${SRC_FILES})
 target_include_directories(core_testing PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(core_testing PUBLIC
-    SDL3::SDL3-static
-    SDL3_image::SDL3_image-static
-    SDL3_ttf::SDL3_ttf-static
+    SDL3::SDL3
+    SDL3_image::SDL3_image
+    SDL3_ttf::SDL3_ttf
     glad::glad
     glm::glm
     TBB::tbb

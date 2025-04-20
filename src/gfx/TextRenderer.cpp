@@ -13,13 +13,11 @@ TextRenderer::TextRenderer(): VAO(0), VBO(0), instanceVBO(0), textureID(0),
 }
 
 TextRenderer::~TextRenderer() {
-    glDeleteVertexArrays(1, &VAO);
-    glDeleteBuffers(1, &VBO);
-    glDeleteBuffers(1, &instanceVBO);
 }
 
 void TextRenderer::LoadFontTexture(const std::string& filepath) {
     int width, height, channels;
+    stbi_set_flip_vertically_on_load(true);
     unsigned char* data = stbi_load(filepath.c_str(), &width, &height, &channels, 4); // Force RGBA
     
     if (!data) {
@@ -39,6 +37,7 @@ void TextRenderer::LoadFontTexture(const std::string& filepath) {
     stbi_image_free(data);
 }
 
+
 bool TextRenderer::LoadGlyphsFromJson(const std::string& path) {
     std::ifstream in(path);
     if (!in.is_open()) {
@@ -49,43 +48,99 @@ bool TextRenderer::LoadGlyphsFromJson(const std::string& path) {
     nlohmann::json j;
     in >> j;
 
-    int scaleW = j["common"]["scaleW"];
-    int scaleH = j["common"]["scaleH"];
-    glm::vec2 texSize(scaleW, scaleH);
+    emSize = j["metrics"]["emSize"];
+    ascender = j["metrics"]["ascender"];
+    // Store in class if needed
+    
+    // Get atlas size
+    int atlasWidth = j["atlas"]["width"];
+    int atlasHeight = j["atlas"]["height"];
+    glm::vec2 texSize(atlasWidth, atlasHeight);
 
-    for (const auto& ch : j["chars"]) {
-        char c = static_cast<char>(ch["id"].get<int>());
+    try {
 
-        Glyph g;
-        glm::vec2 pos(ch["x"], ch["y"]);
-        glm::vec2 size(ch["width"], ch["height"]);
+        // Loop through each glyph
+        for (const auto& glyph : j["glyphs"]) {
+            if (!glyph.contains("planeBounds") || !glyph.contains("atlasBounds"))
+                continue; // skip unsupported or invisible glyphs
+            int unicode = glyph.at("unicode");
+            char32_t c = static_cast<char32_t>(unicode); // only safe for ASCII range
 
-        g.uvMin = pos / texSize;
-        g.uvMax = (pos + size) / texSize;
-        g.size = size;
-        g.offset = glm::vec2(ch["xoffset"], ch["yoffset"]);
-        g.advance = ch["xadvance"];
+            Glyph g;
 
-        this->glyphs[c] = g;
+            // Size in EM units
+            glm::vec2 planeMin = {
+                glyph.at("planeBounds").at("left"),
+                glyph.at("planeBounds").at("bottom")
+            };
+            glm::vec2 planeMax = {
+                glyph.at("planeBounds").at("right"),
+                glyph.at("planeBounds").at("top")
+            };
+
+            // Size in pixels in atlas
+            glm::vec2 atlasMin = {
+                glyph.at("atlasBounds").at("left"),
+                glyph.at("atlasBounds").at("bottom")
+            };
+            glm::vec2 atlasMax = {
+                glyph.at("atlasBounds").at("right"),
+                glyph.at("atlasBounds").at("top")
+            };
+
+            g.uvMin = atlasMin / texSize;
+            g.uvMax = atlasMax / texSize;
+            g.offset = planeMin;                        // in ems; adjust depending on your coordinate system
+            g.size = planeMax - planeMin;
+            g.advance = glyph["advance"];
+
+            this->glyphs[c] = g;
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "JSON parsing error: " << e.what() << std::endl;
+        return false;
     }
+    in.close();
 
     return true;
 }
 
-void TextRenderer::SetText(const std::string& text, glm::vec2 pos, float scale) {
-    instances.clear();
+glm::vec2 TextRenderer::MeasureText(const std::u32string& text) {
+    float width = 0.0f;
+    float maxAboveBaseline = 0.0f;
+    float maxBelowBaseline = 0.0f;
+
+    for (char32_t c : text) {
+        if (glyphs.find(c) == glyphs.end()) continue;
+        const Glyph& g = glyphs.at(c);
+
+        width += g.advance;
+
+        float top = g.offset.y;
+        float bottom = g.offset.y - g.size.y;
+        maxAboveBaseline = std::max(maxAboveBaseline, top);
+        maxBelowBaseline = std::min(maxBelowBaseline, bottom);
+    }
+
+    float height = maxAboveBaseline - maxBelowBaseline;
+    return { width, height };
+}
+
+void TextRenderer::SetText(const std::u32string& text, glm::vec2 pos, glm::vec2 anchor, float scale) {
+    auto textSize = MeasureText(text); // Update the text size
     currentText = text;
-    basePosition = pos;
+    basePosition = pos - anchor * textSize * scale; // Adjust the base position based on anchor
     currentScale = scale;
 
-    float cursorX = pos.x;
+    float cursorX = basePosition.x;
+    float cursorY = basePosition.y;
 
-    for (char c : text) {
+    for (char32_t c : text) {
         if (glyphs.find(c) == glyphs.end()) continue;
         const Glyph& g = glyphs.at(c);
 
         InstanceData instance;
-        instance.offset = glm::vec2(cursorX + g.offset.x * scale, pos.y + g.offset.y * scale);
+        instance.offset = glm::vec2(cursorX + g.offset.x * scale, cursorY + g.offset.y * scale);
         instance.size = g.size * scale;
         instance.uvMin = g.uvMin;
         instance.uvMax = g.uvMax;
@@ -100,12 +155,16 @@ void TextRenderer::SetText(const std::string& text, glm::vec2 pos, float scale) 
 
 void TextRenderer::Init(GameContext *c)
 {
+    shader.Init(c);
+
     // Quad geometry (fullscreen unit quad centered at origin)
-    float quadVertices[8] = {
-        0.0f, 1.0f,  // Top-left
-        1.0f, 1.0f,  // Top-right
-        0.0f, 0.0f,  // Bottom-left
-        1.0f, 0.0f   // Bottom-right
+    // Vertex layout: vec2 position, vec2 uv
+    float quadVertices[] = {
+        // aPos     // aUV
+        0.0f, 1.0f,  0.0f, 1.0f, // Top-left
+        1.0f, 1.0f,  1.0f, 1.0f, // Top-right
+        0.0f, 0.0f,  0.0f, 0.0f, // Bottom-left
+        1.0f, 0.0f,  1.0f, 0.0f  // Bottom-right
     };
 
     glCall(glGenVertexArrays(1, &VAO));
@@ -116,29 +175,43 @@ void TextRenderer::Init(GameContext *c)
 
     // Static quad VBO
     glCall(glBindBuffer(GL_ARRAY_BUFFER, VBO));
-    glCall(glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), quadVertices, GL_STATIC_DRAW));
-    glCall(glEnableVertexAttribArray(0));
-    glCall(glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0));
+    glCall(glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), quadVertices, GL_STATIC_DRAW));// Per-vertex data (unit quad)
 
-    // Instance buffer
-    glCall(glBindBuffer(GL_ARRAY_BUFFER, instanceVBO));
-    glCall(glEnableVertexAttribArray(1)); // offset
-    glCall(glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(InstanceData), (void*)offsetof(InstanceData, offset)));
-    glCall(glVertexAttribDivisor(1, 1));
+    // Each vertex = vec2 pos + vec2 uv = 4 floats = 16 bytes
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0); // aPos
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float))); // aUV
+    glEnableVertexAttribArray(1);
+    
+    // Per-instance data
+    glBindBuffer(GL_ARRAY_BUFFER, instanceVBO);
+    
+    // Offset
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(InstanceData), (void*)offsetof(InstanceData, offset));
+    glEnableVertexAttribArray(2);
+    glVertexAttribDivisor(2, 1);
+    
+    // Size
+    glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, sizeof(InstanceData), (void*)offsetof(InstanceData, size));
+    glEnableVertexAttribArray(3);
+    glVertexAttribDivisor(3, 1);
+    
+    // UV Min
+    glVertexAttribPointer(4, 2, GL_FLOAT, GL_FALSE, sizeof(InstanceData), (void*)offsetof(InstanceData, uvMin));
+    glEnableVertexAttribArray(4);
+    glVertexAttribDivisor(4, 1);
+    
+    // UV Max
+    glVertexAttribPointer(5, 2, GL_FLOAT, GL_FALSE, sizeof(InstanceData), (void*)offsetof(InstanceData, uvMax));
+    glEnableVertexAttribArray(5);
+    glVertexAttribDivisor(5, 1);
 
-    glCall(glEnableVertexAttribArray(2)); // size
-    glCall(glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(InstanceData), (void*)offsetof(InstanceData, size)));
-    glCall(glVertexAttribDivisor(2, 1));
-
-    glCall(glEnableVertexAttribArray(3)); // uvMin
-    glCall(glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, sizeof(InstanceData), (void*)offsetof(InstanceData, uvMin)));
-    glCall(glVertexAttribDivisor(3, 1));
-
-    glCall(glEnableVertexAttribArray(4)); // uvMax
-    glCall(glVertexAttribPointer(4, 2, GL_FLOAT, GL_FALSE, sizeof(InstanceData), (void*)offsetof(InstanceData, uvMax)));
-    glCall(glVertexAttribDivisor(4, 1));
-
-    glCall(glBindVertexArray(0));
+    c->glCleanupQueue.emplace([=]() {
+        glCall(glDeleteVertexArrays(1, &VAO));
+        glCall(glDeleteBuffers(1, &VBO));
+        glCall(glDeleteBuffers(1, &instanceVBO));
+        glCall(glDeleteTextures(1, &textureID));
+    });
 }
 
 void TextRenderer::OnEvent(GameContext *c, const SDL_Event *event)
@@ -158,9 +231,9 @@ void TextRenderer::Render(GameContext *c)
     glCall(glBindVertexArray(this->VAO));
     shader.use();
     shader.setVec2("uScreenSize", glm::vec2(c->width, c->height));
-    shader.setFloat("pxRange", 4.0f);       // MUST match distanceRange in .json
-    shader.setVec4("bgColor", glm::vec4(1.0f,1.0f,1.0f,0.0f));
-    shader.setVec4("fgColor", glm::vec4(0.0f,0.0f,0.0f,1.0f));
-    shader.setInt("msdf", 0);                         // Bind sampler to texture unit 0
+    shader.setFloat("uPxRange", 2.0f);
+    shader.setVec4("uTextColor", glm::vec4(0, 0, 0, 1));
+    shader.setInt("uFontAtlas", 0);
+                         // Bind sampler to texture unit 0
     glCall(glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, instances.size()));
 }

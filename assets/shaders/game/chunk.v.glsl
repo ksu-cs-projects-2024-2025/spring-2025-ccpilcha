@@ -50,7 +50,7 @@ void main()
     aPos.z = bitfieldExtract(packed0, 17, 5);
     aFace = bitfieldExtract(packed0, 14, 3);
     aTextureID = bitfieldExtract(packed0, 0, 14) << 2 | bitfieldExtract(packed1, 30, 2);
-    uint aoBits = bitfieldExtract(packed1, 22, 8);
+    uint aoBits = (packed1 >> 22u) & 0xFFu;
     uint ao = (aoBits >> ((gl_VertexID % 4) * 2)) & 0x3u;
     vAO = 0.25 + float(ao) * 0.25;
 

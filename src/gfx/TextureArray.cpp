@@ -1,4 +1,5 @@
 #include "TextureArray.hpp"
+#include "game/GameContext.hpp"
 #include <glad/glad.h>
 #include "../util/GLHelper.hpp"
 #include <SDL3_image/SDL_image.h>
@@ -27,9 +28,20 @@ SDL_Surface* cropSurface(SDL_Surface* surface, int x, int y, int width, int heig
     return croppedSurface;
 }
 
-TextureArray::TextureArray(const char* path)
+TextureArray::TextureArray(const std::string& path)
+{
+    this->path = path;
+}
+
+void TextureArray::Init(GameContext *c)
 {
     glCall(glGenTextures(1, &id));
+
+    c->glCleanupQueue.emplace([=]() {
+        glCall(glDeleteTextures(1, &id));
+    });
+
+    
     glCall(glBindTexture(GL_TEXTURE_2D_ARRAY, id));
     // set the texture wrapping/filtering options (on the currently bound texture object)
     glCall(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT));
@@ -37,7 +49,7 @@ TextureArray::TextureArray(const char* path)
     glCall(glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_NEAREST));
     glCall(glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
 
-    SDL_Surface* surface = IMG_Load(path);
+    SDL_Surface* surface = IMG_Load(this->path.c_str());
     if (surface == NULL) {
         std::cerr << "SDL_CreateRGBSurface failed: " << SDL_GetError() << std::endl;
     }
