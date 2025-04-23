@@ -2,7 +2,7 @@
 
 #include <glad/glad.h>
 #include <glm/glm.hpp>
-#include <xstring>
+#include <string>
 
 struct UIComponent {
     // Geometry

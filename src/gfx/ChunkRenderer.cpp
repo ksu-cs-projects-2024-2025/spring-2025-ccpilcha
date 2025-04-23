@@ -362,7 +362,7 @@ void ChunkRenderer::Render(GameContext *c)
 	glm::mat4 VP = c->plr->camera.proj * c->plr->camera.view;
 	std::array<Plane, 6> frustumPlanes = extractFrustumPlanes(VP);
 	chunkShader.setMat4("model", glm::translate(glm::mat4(1.0f), camPos));
-	chunkShader.setVec3("plrPos",(glm::vec3)c->plr->pos - camPos);
+	chunkShader.setVec3("plrPos", (glm::vec3)c->plr->pos - camPos);
 
 	std::vector<ChunkPos> transparent;
 	for (int dz = -c->renderDistance; dz < c->renderDistance; dz++){

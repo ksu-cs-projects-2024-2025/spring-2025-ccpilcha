@@ -37,10 +37,10 @@ struct GameContext {
     double maxBlockDistance;
     TextureArray texture;
 
-    uint64_t seed; // world seed
+    uint64_t seed = 10000; // world seed
     int renderDistance; // radius in chunks
 
-    SDL_Keycode forward, backward, left, right, up, down, sprint;
+    SDL_Keycode forward, backward, left, right, up, down, zenith, nadir, sprint, toggleFly, jump;
 
     std::unordered_map<int, BlockInfo> blockRegistry;
 
@@ -56,9 +56,9 @@ struct GameContext {
     } state;
 
     GameContext() : 
-        fov(90.0f), 
-        yawSensitivity(0.1f), 
-        pitchSensitivity(0.1f), 
+        fov(110.0f), 
+        yawSensitivity(1.f), 
+        pitchSensitivity(1.f), 
         texture("assets/textures/texturepack-simple.png") // TODO: i want all these variables to come from a config file
     {
         pathToTextureJSON = "assets/textures/texturepack-simple.json";
@@ -67,15 +67,19 @@ struct GameContext {
 
         moveSpeed = 20.f;
 
-        renderDistance = 16;
+        renderDistance = 12; 
         maxBlockDistance = 10.0f;
 
-        forward = SDLK_W;
-        backward = SDLK_S;
-        left = SDLK_A;
-        right = SDLK_D;
-        up = SDLK_SPACE;
-        down = SDLK_LSHIFT;
-        sprint = SDLK_LALT;
+        toggleFly    =   SDLK_F1;
+        forward      =   SDLK_W;
+        backward     =   SDLK_S;
+        left         =   SDLK_A;
+        right        =   SDLK_D;
+        up           =   SDLK_E;
+        down         =   SDLK_Q;
+        zenith       =   SDLK_SPACE;
+        nadir        =   SDLK_LSHIFT;
+        jump         =   SDLK_SPACE;
+        sprint       =   SDLK_LALT;
     }
 };

@@ -9,7 +9,7 @@ struct Ray {
     glm::vec3 direction;
     bool dig = false;
     Ray() : origin(0), direction(0) {}
-    Ray(glm::vec3 origin, glm::vec3 direction, ChunkPos cPos, bool dig) : origin(origin), direction(direction), originC(cPos), dig(dig) {}
+    Ray(glm::vec3 origin, glm::vec3 direction, ChunkPos cPos, bool dig) : origin(origin), direction(glm::normalize(direction)), originC(cPos), dig(dig) {}
     glm::vec3 at(float t) const {
         return origin + t * direction;
     }

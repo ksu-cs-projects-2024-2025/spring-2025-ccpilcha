@@ -19,6 +19,7 @@
 
 struct BlockFace {
     glm::ivec3 pos;
+    double t;
     int face = -1;
 
     glm::ivec3 getNeighbor()
@@ -52,6 +53,7 @@ class World {
     std::thread loadThread;
     std::unique_ptr<PriorityThreadPool> threadPool;
     std::atomic<bool> loadSignal{false};
+    tbb::concurrent_queue<Ray> rays;
     float phase = 0.f, phase2 = 0.f;
     int sX, sY, sZ, sF;
     // the intention is to build the BFS search order first
@@ -68,7 +70,6 @@ public:
     tbb::concurrent_queue<PrioritizedChunk> chunkLoadQueue;
     tbb::concurrent_queue<ChunkPos> chunkRemoveQueue;
     tbb::concurrent_queue<std::shared_ptr<Chunk>> freeChunks;
-    tbb::concurrent_queue<Ray> rays;
     tbb::concurrent_unordered_map<ChunkPos, std::shared_ptr<Chunk>> chunks; // this is a map of chunk positions to chunks loaded in memory
     World();
     ~World();
@@ -82,5 +83,6 @@ public:
     BLOCK_ID_TYPE GetBlockId(const ChunkPos &pos, int x, int y, int z);
     void SetBlockId(const ChunkPos &pos, int x, int y, int z, BLOCK_ID_TYPE id);
     void Render(GameContext *c);
+    void CastRay(Ray ray) { rays.emplace(ray); }
     BlockFace RayTraversal(GameContext *c, Ray ray, double tMin, double tMax);
 };

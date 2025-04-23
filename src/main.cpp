@@ -7,9 +7,11 @@
 #define G_DEBUG
 #include <string>
 #include <iostream>
+#include <thread>
 #include <cstdint>
 #include <glad/glad.h>
 #include <SDL3/SDL.h>
+#include <SDL3/SDL_video.h>
 #include <SDL3/SDL_main.h>
 #include <SDL3/SDL_gpu.h>
 #include <png.h>
@@ -279,7 +281,11 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 // This function runs once at shutdown.
 void SDL_AppQuit(void *appstate, SDL_AppResult result)
 {
-
+    // we need to clean the OpenGL pipeline
+    while (!context->glCleanupQueue.empty()) {
+        auto task = context->glCleanupQueue.back();
+        task();
+    }
         // after running == false
     // destroy GL context
     SDL_GL_DestroyContext(G_OpenGL_CONTEXT);

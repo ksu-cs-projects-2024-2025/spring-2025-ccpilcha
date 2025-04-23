@@ -3,7 +3,7 @@
 #include <array>
 #include <iostream>
 
-Terrain::Terrain() : seed(0)
+Terrain::Terrain() : seed(1000)
 {
     perlin = FastNoise::New<FastNoise::Simplex>();
     FBm = FastNoise::New<FastNoise::FractalFBm>();
@@ -144,15 +144,24 @@ std::vector<float> Terrain::generateStoneHeightMap(ChunkPos pos)
 
 std::vector<bool> Terrain::generateCaves(ChunkPos pos)
 {
-    float frequency = 0.01f;
+    float frequency = 0.009f;
+    float frequencyVar = 0.0001f;
     int SCALE = 4;
     int xSize = CHUNK_X_SIZE / SCALE + 1;
     int ySize = CHUNK_Y_SIZE / SCALE + 1;
     int zSize = CHUNK_Z_SIZE / SCALE + 1;
     std::vector<bool> caveMap(CHUNK_X_SIZE * CHUNK_Y_SIZE * CHUNK_Z_SIZE, false);
-    std::vector<float> caveNoise(xSize * ySize * zSize);
+    std::vector<float> caveNoise(xSize * ySize * zSize), variation(CHUNK_X_SIZE * CHUNK_Y_SIZE);
+    
+    std::vector<std::pair<float, float>> caveSplines = {
+        {-1.0f, 0.1f},
+        {-0.5f, 0.3f},
+        { 0.0f, 0.5f},
+        { 1.0f, 1.0f} 
+    };
 
-    FBm->GenUniformGrid3D(caveNoise.data(), pos.x * xSize, pos.y * ySize, pos.z * zSize, xSize, ySize, zSize, frequency, seed);
+    FBm->GenUniformGrid3D(caveNoise.data(), pos.x * (xSize - 1), pos.y * (ySize - 1), pos.z * (zSize - 1), xSize, ySize, zSize, frequency, seed);
+	FBm->GenUniformGrid2D(variation.data(), pos.x * CHUNK_X_SIZE, pos.y * CHUNK_Y_SIZE, CHUNK_X_SIZE, CHUNK_Y_SIZE, frequencyVar, seed);
 
     auto sampleLowRes = [&](int x, int y, int z) -> float {
         x = std::clamp(x, 0, xSize - 1);
@@ -199,8 +208,10 @@ std::vector<bool> Terrain::generateCaves(ChunkPos pos)
                 float c1 = c01 * (1 - ty) + c11 * ty;
     
                 float c = c0 * (1 - tz) + c1 * tz;
+
+                float variance = variation[x + CHUNK_X_SIZE * y];
     
-                caveMap[x + CHUNK_X_SIZE * (y + CHUNK_Y_SIZE * z)] = c > 0.3f;
+                caveMap[x + CHUNK_X_SIZE * (y + CHUNK_Y_SIZE * z)] = c > linearSpline(caveSplines, variance);
             }
         }
     }    

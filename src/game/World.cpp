@@ -132,8 +132,24 @@ void World::TraverseRays(GameContext *c)
         glm::ivec3 neighbor = block.getNeighbor();
         if (ray.dig)
             this->SetBlockId(ray.originC, block.pos.x, block.pos.y, block.pos.z, 0);
-        else
-            this->SetBlockId(ray.originC, neighbor.x, neighbor.y, neighbor.z, c->plr->cursor);
+        else {
+
+            // Player's bounding box
+            glm::dvec3 minBound = c->plr->pos - c->plr->radius;
+            glm::dvec3 maxBound = c->plr->pos + c->plr->radius;
+
+            // Block's position
+            glm::dvec3 blockMin = glm::dvec3(neighbor.x, neighbor.y, neighbor.z);
+            glm::dvec3 blockMax = glm::dvec3(neighbor.x + 1, neighbor.y + 1, neighbor.z + 1);
+
+            // Check for overlap between the player's bounding box and the block's bounding box
+            if ((blockMax.x < minBound.x || blockMin.x > maxBound.x || // No overlap on X-axis
+                blockMax.y < minBound.y || blockMin.y > maxBound.y || // No overlap on Y-axis
+                blockMax.z < minBound.z || blockMin.z > maxBound.z))  // No overlap on Z-axis
+            {
+                this->SetBlockId(ray.originC, neighbor.x, neighbor.y, neighbor.z, c->plr->cursor);
+            }
+        }
     }
 }
 
@@ -175,7 +191,7 @@ BlockFace World::RayTraversal(GameContext *c, Ray ray, double tMin, double tMax)
             v_tMax.x += v_tDelta.x;
 
             if (c->blockRegistry[this->GetBlockId(ray.originC, curPos.x, curPos.y, curPos.z)].isSelectable) {
-                block = BlockFace({curPos, (step.x == 1) ? 0 : 1});
+                block = BlockFace({curPos, v_tMax.x, (step.x == 1) ? 0 : 1});
                 break;
             }
         } else if (v_tMax.y < v_tMax.z) {
@@ -185,7 +201,7 @@ BlockFace World::RayTraversal(GameContext *c, Ray ray, double tMin, double tMax)
 
             if (c->blockRegistry[this->GetBlockId(ray.originC, curPos.x, curPos.y, curPos.z)].isSelectable)
             {
-                block = BlockFace({curPos, (step.y == 1) ? 2 : 3});
+                block = BlockFace({curPos, v_tMax.y, (step.y == 1) ? 2 : 3});
                 break;
             }
         } else {
@@ -195,7 +211,7 @@ BlockFace World::RayTraversal(GameContext *c, Ray ray, double tMin, double tMax)
 
             if (c->blockRegistry[this->GetBlockId(ray.originC, curPos.x, curPos.y, curPos.z)].isSelectable)
             {
-                block = BlockFace({curPos, (step.z == 1) ? 4 : 5});
+                block = BlockFace({curPos, v_tMax.z, (step.z == 1) ? 4 : 5});
                 break;
             }
         }
@@ -212,7 +228,6 @@ void World::LoadChunks(GameContext *c)
 {
     // Here we need to load the modified chunks
     ChunkPos pPos = c->plr->chunkPos;
-/*
     std::ifstream in("chunk.json");
     if (in.is_open()) {
 
@@ -237,7 +252,7 @@ void World::LoadChunks(GameContext *c)
             renderer->queueCV.notify_one();
         }
         
-    }*/
+    }
 
     while (true)
     {
@@ -443,19 +458,6 @@ void World::OnEvent(GameContext *c, const SDL_Event *event)
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, fboDepthTexture, 0);
 
     }
-
-    if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN)
-    {
-        if (event->button.button == SDL_BUTTON_RIGHT)
-        {
-            rays.emplace(Ray(c->plr->pos, c->plr->camera.forward, c->plr->chunkPos, false));
-        }
-
-        if (event->button.button == SDL_BUTTON_LEFT)
-        {
-            rays.emplace(Ray(c->plr->pos, c->plr->camera.forward, c->plr->chunkPos, true));
-        }
-    }
 }
 
 /**
@@ -471,16 +473,11 @@ void World::OnEvent(GameContext *c, const SDL_Event *event)
 void World::Update(GameContext *c, double deltaTime)
 {
     if (c->isClosing) return; // Exit if game is closing
-    if (c->blockRegistry[this->GetBlockId(c->plr->chunkPos, c->plr->pos.x, c->plr->pos.y, c->plr->pos.z)].blockType == BlockType::Water)
-    {
-        c->plr->camera.setFOV(c->fov / 1.16f); // im just going with half the index of refraction
-    } else {
-        c->plr->camera.setFOV(c->fov);
-    }
 
     ImGui::Text("block: (%d, %d, %d)", (int)floor(c->plr->pos.x),(int) floor(c->plr->pos.y), (int)floor(c->plr->pos.z));
     ImGui::Text("chunk: (%lld, %lld, %lld)", c->plr->chunkPos.x, c->plr->chunkPos.y, c->plr->chunkPos.z); 
     ImGui::Text("pos:   (%lld, %lld, %lld)", (int)floor(c->plr->pos.x) + CHUNK_X_SIZE * c->plr->chunkPos.x, (int) floor(c->plr->pos.y) + CHUNK_Y_SIZE * c->plr->chunkPos.y, (int)floor(c->plr->pos.z) + CHUNK_Z_SIZE * c->plr->chunkPos.z);
+    ImGui::Text("pos:   (%f, %f, %f)", c->plr->pos.x + CHUNK_X_SIZE * c->plr->chunkPos.x, c->plr->pos.y + CHUNK_Y_SIZE * c->plr->chunkPos.y, c->plr->pos.z + CHUNK_Z_SIZE * c->plr->chunkPos.z);
     phase += deltaTime / 2.0f;
     if (phase >= 1.0f) phase -= 1.0f;
     if (phase2 >= 1.0f) phase2 -= 1.0f;
@@ -583,7 +580,7 @@ void World::Render(GameContext *c)
     glDrawArrays(GL_TRIANGLES, 0, 6);
 
     // RENDER HIGHLIGHT
-    BlockFace selected = RayTraversal(c, Ray(c->plr->pos, c->plr->camera.forward, c->plr->chunkPos, false), 0, c->maxBlockDistance);
+    BlockFace selected = RayTraversal(c, Ray(c->plr->camPos, c->plr->camera.forward, c->plr->chunkPos, false), 0, c->maxBlockDistance);
     if (selected.face != -1)
     {  
         highlightShader.use();
@@ -617,7 +614,6 @@ void World::Render(GameContext *c)
 
 	gizmoMesh.RenderInstanceAuto(GL_LINES, 2, 3);
 }
-
 
 World::~World()
 {

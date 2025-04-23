@@ -11,8 +11,8 @@ struct Camera {
     glm::mat4 model, view, proj;
     
     float yaw, pitch, fov, aspect;
-    float yawSensitivity = 0.1f;
-    float pitchSensitivity = 0.1f;
+    float yawSensitivity = 0.2f;
+    float pitchSensitivity = 0.2f;
 
     Camera() {
         glm::vec3 front;
