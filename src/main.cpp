@@ -175,6 +175,7 @@ void Exit()
 // Runs when a new event (mouse input, keypresses, etc) occurs. This is on a separate thread!
 SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
 {
+    ImGui_ImplSDL3_ProcessEvent(event);
     if (event->type == SDL_EVENT_QUIT) {
         context->isClosing = true;
         return SDL_APP_CONTINUE;  /* end the program, reporting success to the OS. */
@@ -269,7 +270,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 
     Uint64 frameEnd = SDL_GetTicks();
     int frameTime = frameEnd - frameStart;
-    int targetDelay = 1000 / 144;
+    int targetDelay = 1000 / 61;
 
     if (frameTime < targetDelay)
         SDL_Delay(targetDelay - frameTime);

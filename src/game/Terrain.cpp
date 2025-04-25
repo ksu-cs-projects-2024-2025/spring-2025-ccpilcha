@@ -89,7 +89,7 @@ std::vector<float> Terrain::generateHeightMap(ChunkPos pos)
                         calm(CHUNK_X_SIZE * CHUNK_Y_SIZE);
 
 	rgd->GenUniformGrid2D(continental.data(), pos.x * CHUNK_X_SIZE, pos.y * CHUNK_Y_SIZE, CHUNK_X_SIZE, CHUNK_Y_SIZE, frequency, seed);
-	FBm->GenUniformGrid2D(erosion.data(), pos.x * CHUNK_X_SIZE, pos.y * CHUNK_Y_SIZE, CHUNK_X_SIZE, CHUNK_Y_SIZE, frequencyErosion, seed + 1);
+	FBm->GenUniformGrid2D(erosion.data(), pos.x * CHUNK_X_SIZE, pos.y * CHUNK_Y_SIZE, CHUNK_X_SIZE, CHUNK_Y_SIZE, frequencyErosion, seed);
 	FBm->GenUniformGrid2D(variation.data(), pos.x * CHUNK_X_SIZE, pos.y * CHUNK_Y_SIZE, CHUNK_X_SIZE, CHUNK_Y_SIZE, frequencyVariation, seed);
 	FBm->GenUniformGrid2D(calm.data(), pos.x * CHUNK_X_SIZE, pos.y * CHUNK_Y_SIZE, CHUNK_X_SIZE, CHUNK_Y_SIZE, frequencyCalm, seed);
 

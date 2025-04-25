@@ -75,20 +75,37 @@ struct ChunkPos
         return *this;
     }
 
-    static ChunkPos adjust(const ChunkPos& pos, int& x, int& y, int& z) {
-        int dx = 0, dy = 0, dz = 0;
-        if (x < 0)              dx--;
-        if (x >= CHUNK_X_SIZE)  dx++;
-        if (y < 0)              dy--;
-        if (y >= CHUNK_Y_SIZE)  dy++;
-        if (z < 0)              dz--;
-        if (z >= CHUNK_Z_SIZE)  dz++;
+    static ChunkPos adjust(const ChunkPos& pos, int& x, int& y, int& z) 
+    {
+        int dx = static_cast<int>(std::floor(static_cast<double>(x) / CHUNK_X_SIZE));
+        int dy = static_cast<int>(std::floor(static_cast<double>(y) / CHUNK_Y_SIZE));
+        int dz = static_cast<int>(std::floor(static_cast<double>(z) / CHUNK_Z_SIZE));
+
         x -= dx * CHUNK_X_SIZE;
         y -= dy * CHUNK_Y_SIZE;
         z -= dz * CHUNK_Z_SIZE;
+
         return ChunkPos{pos.x + dx, pos.y + dy, pos.z + dz};
     }
 
+    static ChunkPos adjust(const ChunkPos& cPos, glm::dvec3& pos) 
+    {
+        int dx = static_cast<int>(std::floor(static_cast<double>(pos.x) / CHUNK_X_SIZE));
+        int dy = static_cast<int>(std::floor(static_cast<double>(pos.y) / CHUNK_Y_SIZE));
+        int dz = static_cast<int>(std::floor(static_cast<double>(pos.z) / CHUNK_Z_SIZE));
+
+        pos.x -= dx * CHUNK_X_SIZE;
+        pos.y -= dy * CHUNK_Y_SIZE;
+        pos.z -= dz * CHUNK_Z_SIZE;
+        return ChunkPos{cPos.x + dx, cPos.y + dy, cPos.z + dz};
+    }
+
+    glm::dvec3 abs(const glm::dvec3& pos)
+    {
+        return glm::dvec3({CHUNK_X_SIZE * this->x + pos.x,
+                           CHUNK_Y_SIZE * this->y + pos.y,
+                           CHUNK_Z_SIZE * this->z + pos.z});
+    }
 
     std::string toString() const {
         return "{" + std::to_string(x) + ", " + std::to_string(y) + ", " + std::to_string(z) + "}";

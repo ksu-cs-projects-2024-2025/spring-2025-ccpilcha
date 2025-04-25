@@ -149,9 +149,9 @@ void ChunkRenderer::RenderChunkAt(GameContext *c, PrioritizedChunk pChunk)
 
 			// Add the face to the mesh
 			if (blockInfo.IsTranslucent())
-				newVertsTranslucent.push_back({ x, y, z, blockInfo.textureIndices[face], face, aoByte });
+				newVertsTranslucent.emplace_back(x, y, z, blockInfo.textureIndices[face], face, aoByte);
 			else
-				newVerts.push_back({ x, y, z, blockInfo.textureIndices[face], face, aoByte });
+				newVerts.emplace_back(x, y, z, blockInfo.textureIndices[face], face, aoByte);
 		}
 	}
 	}

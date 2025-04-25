@@ -33,6 +33,7 @@ void Player::Init(GameContext *c, ChunkPos pos)
 
 void Player::OnEvent(GameContext *c, const SDL_Event *event)
 {
+    if (!c->isFocused) return;
     if (event->type == SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED)
     {
         camera.viewport(c->aspectRatio, c->fov);
@@ -81,8 +82,8 @@ void Player::OnEvent(GameContext *c, const SDL_Event *event)
             jump = isPressed;
         
         if (key == c->toggleFly && isPressed) {
-            moveMethod = moveMethod == Movement::Normal ? Movement::Fly : Movement::Normal;
-            std::cout << (moveMethod == Movement::Normal ? "Normal" : "Flying");
+            nextMethod = nextMethod == Movement::Normal ? Movement::Fly : Movement::Normal;
+            std::cout << (nextMethod == Movement::Normal ? "Normal" : "Flying");
         }
 
         if (key == SDLK_1)
@@ -106,6 +107,7 @@ void Player::OnEvent(GameContext *c, const SDL_Event *event)
 
 void Player::Update(GameContext *c, double deltaTime)
 {
+    currentMethod = nextMethod;
     glm::dvec3 move(0, 0, 0);
     camOffsetOffset = glm::dvec3(0.0);
     // handle movement
@@ -123,7 +125,7 @@ void Player::Update(GameContext *c, double deltaTime)
 
     glm::dvec3 frameDelta(0.0);
     if (c->isFocused) {
-        switch (this->moveMethod)
+        switch (this->currentMethod)
         {
             case Movement::Normal:
                 if (movement[0])
@@ -188,7 +190,7 @@ void Player::Update(GameContext *c, double deltaTime)
 
     glm::dvec2 targetVelocity(0.0);
 
-    if (moveMethod == Movement::Fly ) {
+    if (currentMethod == Movement::Fly) {
         // --- FLY MODE: no gravity, no verticalVelocity, just apply moveInput directly ---
         frameDelta = move;
     }
@@ -210,7 +212,7 @@ void Player::Update(GameContext *c, double deltaTime)
 
         if (dvLen > 1e-8) {
             // limit the change to maxAccel * deltaTime
-            double maxStep = 150.0 * maxAccel * (onGround ? 1.0 : 0.3) * deltaTime;
+            double maxStep = 160.0 * maxAccel * (onGround ? 1.0 : 0.3) * deltaTime;
             if (dvLen > maxStep) {
                 dv *= (maxStep / dvLen);
             }
@@ -268,7 +270,7 @@ void Player::Update(GameContext *c, double deltaTime)
     pos = newPos;
 
     // --- now update verticalVelocity & onGround *only* in Normal mode ---
-    if (moveMethod == Movement::Normal) {
+    if (currentMethod == Movement::Normal) {
         double actualDZ = (pos.z - oldPos.z) / deltaTime;
         verticalVelocity = actualDZ;
 

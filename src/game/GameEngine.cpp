@@ -3,13 +3,51 @@
 #include "glad/glad.h"
 #include "../util/GLHelper.hpp"
 #include <SDL3/SDL.h>
+#include <variant>
 #include <imgui.h>
+#include <imgui_stdlib.h>
 #include <imgui_impl_sdl3.h>
 #include <imgui_impl_opengl3.h>
 
+CommandResult GameEngine::RunCommand(const Command &command)
+{
+    auto result = CommandResult();
 
-GameEngine::GameEngine(GameContext *c) : context(c), plr(), 
-gui()
+    constexpr auto defaultToFloat = [](const CommandToken& token) -> float
+    {
+        float v;
+        const float *vf = std::get_if<float>(&token);
+        if (vf) v = *vf;
+        else v = (float) std::get<int>(token);
+        return v;
+    };
+
+    try {
+        switch (command.type) {
+            case Command::Type::TELEPORT:
+                float x = defaultToFloat(command.args.at(0).token);
+                float y = defaultToFloat(command.args.at(1).token);
+                float z = defaultToFloat(command.args.at(2).token);
+                auto absPlr = plr.chunkPos.abs(plr.pos);
+                auto newPosRel = glm::dvec3(x,y,z) - absPlr;
+                plr.chunkPos = ChunkPos::adjust(plr.chunkPos, newPosRel);
+                plr.pos += newPosRel;
+
+                result.code = 0;
+                result.message << "Successfully teleported to " << x << ", " << y << ", " << z;
+                break;
+        }
+    } catch (std::exception& e)
+    {
+        result.code = -1; //TODO: make codes which represent the type of error like too few args
+    }
+
+    this->console.LogCommand(command, result);
+    return result;
+}
+
+GameEngine::GameEngine(GameContext *c) : context(c), plr(),
+                                         gui()
 {
     // TODO: make this work off of a json or yaml. imports all the stuff necessary
     int w, h;
@@ -79,8 +117,7 @@ SDL_AppResult GameEngine::OnEvent(SDL_Event *event) {
             }
             if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN){
                 if (event->button.button == SDL_BUTTON_LEFT) {
-                    if (!io.WantCaptureMouse)
-                        context->isFocused = true;
+                    context->isFocused = !(io.WantCaptureMouse || io.WantCaptureKeyboard || io.WantTextInput);
                 }
             }
             if (SDL_GetWindowRelativeMouseMode(context->window) != context->isFocused) 
@@ -106,6 +143,48 @@ SDL_AppResult GameEngine::Update(double deltaTime) {
     return SDL_APP_CONTINUE;
 }
 
+int GameEngine::TextEditCallback(ImGuiInputTextCallbackData* data) {
+    // only called when CallbackHistory flag is set
+    if (data->EventFlag == ImGuiInputTextFlags_CallbackHistory) {
+        // save old pos
+        int prev_pos = history_pos;
+        if (data->EventKey == ImGuiKey_UpArrow) {
+            // move up in history
+            if (history_pos == -1) 
+                history_pos = (int)history.size() - 1;
+            else if (history_pos > 0)
+                history_pos--;
+        }
+        else if (data->EventKey == ImGuiKey_DownArrow) {
+            // move down (or back to fresh)
+            if (history_pos != -1) {
+                if (history_pos < (int)history.size() - 1)
+                    history_pos++;
+                else
+                    history_pos = -1;
+            }
+        }
+
+        // if position changed, update buffer
+        if (prev_pos != history_pos) {
+            const char* hist_str = (history_pos >= 0) 
+                ? history[history_pos].c_str() 
+                : "";
+            data->DeleteChars(0, data->BufTextLen);
+            data->InsertChars(0, hist_str);
+        }
+    }
+    return 0;
+}
+
+// static trampoline
+static int CallbackStatic(ImGuiInputTextCallbackData* data) {
+    // recover `this` pointer
+    GameEngine* self = static_cast<GameEngine*>(data->UserData);
+    return self->TextEditCallback(data);
+}
+
+
 SDL_AppResult GameEngine::Render() {
     glCall(glClearColor(1.0f, 1.0f, 1.0f, 1.0f));
     glCall(glClear(GL_COLOR_BUFFER_BIT));
@@ -118,5 +197,17 @@ SDL_AppResult GameEngine::Render() {
         break;
     }
     gui.Render(context);
+
+    std::string input;
+    if (ImGui::InputText("Command", &input, ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_CallbackHistory, CallbackStatic, this))
+    {
+        history_pos = -1;
+        history.push_back(input);
+        auto command = this->console.ParseCommand(input);
+        lastCommand = this->RunCommand(command);
+        showLastCommand = true;
+    }
+    if (ImGui::IsItemActivated()) showLastCommand = false;
+    if (showLastCommand) ImGui::Text("%s", lastCommand.message.str().c_str());
     return SDL_APP_CONTINUE;
 }

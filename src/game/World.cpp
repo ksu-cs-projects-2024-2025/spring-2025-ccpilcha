@@ -561,7 +561,7 @@ void World::Render(GameContext *c)
 
     // Use post shader
     postShader.use();
-    if (c->blockRegistry[this->GetBlockId(c->plr->chunkPos, c->plr->pos.x, c->plr->pos.y, c->plr->pos.z)].blockType == BlockType::Water)
+    if (c->blockRegistry[this->GetBlockId(c->plr->chunkPos, c->plr->camPos.x, c->plr->camPos.y, c->plr->camPos.z)].blockType == BlockType::Water)
     {
         postShader.setVec3("hint", glm::vec3(0.3f, 0.7f, 1.0f));
         postShader.setFloat("rippleStrength", 0.002f);

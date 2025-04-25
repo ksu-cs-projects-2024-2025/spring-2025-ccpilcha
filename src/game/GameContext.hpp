@@ -37,7 +37,7 @@ struct GameContext {
     double maxBlockDistance;
     TextureArray texture;
 
-    uint64_t seed = 10000; // world seed
+    uint64_t seed = 112349; // world seed
     int renderDistance; // radius in chunks
 
     SDL_Keycode forward, backward, left, right, up, down, zenith, nadir, sprint, toggleFly, jump;
@@ -48,12 +48,6 @@ struct GameContext {
 
     std::mutex glCleanupMutex;
     std::queue<std::function<void()>> glCleanupQueue;
-
-    enum GameState {
-        GAME_STATE_MENU,
-        GAME_STATE_PLAYING,
-        GAME_STATE_PAUSED
-    } state;
 
     GameContext() : 
         fov(110.0f), 
@@ -67,7 +61,7 @@ struct GameContext {
 
         moveSpeed = 20.f;
 
-        renderDistance = 12; 
+        renderDistance = 24; 
         maxBlockDistance = 10.0f;
 
         toggleFly    =   SDLK_F1;
