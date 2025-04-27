@@ -29,7 +29,7 @@ class Player
     double      maxPlace    = 0.25;
     double      maxDig      = 1.0/3.0;
 
-    double          verticalVelocity; // persists across frames
+    double          verticalVelocity = 0.0; // persists across frames
     bool            onGround;         // persists across frames
 
     enum class Movement {
@@ -55,4 +55,5 @@ public:
     void OnEvent(GameContext *c, const SDL_Event *event);
     void Update(GameContext *c, double deltaTime);
     void Render(GameContext *c);
+    void RenderDebug(GameContext *c);
 };

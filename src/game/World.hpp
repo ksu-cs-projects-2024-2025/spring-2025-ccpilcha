@@ -44,6 +44,7 @@ struct BlockFace {
 
 class World {
 
+    BlockFace selected;
     GLuint fbo, fboTexture, fboDepthTexture;
 
     Shader gizmoShader, skyShader, highlightShader, postShader;
@@ -81,8 +82,10 @@ public:
     bool ChunkLoaded(const ChunkPos &pos);
     bool ChunkMeshLoaded(const ChunkPos &pos);
     BLOCK_ID_TYPE GetBlockId(const ChunkPos &pos, int x, int y, int z);
+    bool IsTranslucent(const ChunkPos &pos, int x, int y, int z);
     void SetBlockId(const ChunkPos &pos, int x, int y, int z, BLOCK_ID_TYPE id);
     void Render(GameContext *c);
+    void RenderDebug(GameContext *c);
     void CastRay(Ray ray) { rays.emplace(ray); }
     BlockFace RayTraversal(GameContext *c, Ray ray, double tMin, double tMax);
 };

@@ -51,7 +51,7 @@ GameEngine::GameEngine(GameContext *c) : context(c), plr(),
 {
     // TODO: make this work off of a json or yaml. imports all the stuff necessary
     int w, h;
-    SDL_GetWindowSizeInPixels(c->window, &w, &h);
+    SDL_GetWindowSizeInPixels(context->window, &w, &h);
     UIComponent startButton;
     startButton.text = U"PLAY";
     startButton.textAnchor = glm::vec2(0.5f, 0.5f);
@@ -108,6 +108,8 @@ SDL_AppResult GameEngine::OnEvent(SDL_Event *event) {
         case MENU:
             break;
         case PLAY:
+            world->OnEvent(context, event);
+            plr.OnEvent(context, event);
             if (event->type == SDL_EVENT_KEY_DOWN) {
                 switch (event->key.key) {
                     case SDLK_TAB:
@@ -117,13 +119,11 @@ SDL_AppResult GameEngine::OnEvent(SDL_Event *event) {
             }
             if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN){
                 if (event->button.button == SDL_BUTTON_LEFT) {
-                    context->isFocused = !(io.WantCaptureMouse || io.WantCaptureKeyboard || io.WantTextInput);
+                    context->isFocused = !(io.WantCaptureMouse);
                 }
             }
             if (SDL_GetWindowRelativeMouseMode(context->window) != context->isFocused) 
                 SDL_SetWindowRelativeMouseMode(context->window, context->isFocused);
-            world->OnEvent(context, event);
-            plr.OnEvent(context, event);
             break;
     } 
     return SDL_APP_CONTINUE;
@@ -184,7 +184,6 @@ static int CallbackStatic(ImGuiInputTextCallbackData* data) {
     return self->TextEditCallback(data);
 }
 
-
 SDL_AppResult GameEngine::Render() {
     glCall(glClearColor(1.0f, 1.0f, 1.0f, 1.0f));
     glCall(glClear(GL_COLOR_BUFFER_BIT));
@@ -197,7 +196,19 @@ SDL_AppResult GameEngine::Render() {
         break;
     }
     gui.Render(context);
+    return SDL_APP_CONTINUE;
+}
 
+SDL_AppResult GameEngine::RenderDebug()
+{
+    switch(state){
+        case MENU:
+            break;
+        case PLAY:
+            world->RenderDebug(context);
+            plr.RenderDebug(context);
+            break;
+    }
     std::string input;
     if (ImGui::InputText("Command", &input, ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_CallbackHistory, CallbackStatic, this))
     {

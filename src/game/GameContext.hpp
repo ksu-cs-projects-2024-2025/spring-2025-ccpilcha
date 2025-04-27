@@ -61,7 +61,7 @@ struct GameContext {
 
         moveSpeed = 20.f;
 
-        renderDistance = 24; 
+        renderDistance = 16; 
         maxBlockDistance = 10.0f;
 
         toggleFly    =   SDLK_F1;

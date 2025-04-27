@@ -17,7 +17,10 @@
         "emitsLight": false,
         "isCollidable": true,
         "hardness": 0.3,        
-        "textureIndices": [1,1,1,1,2,0]
+        "textureIndices": [1,1,1,1,2,0],
+        "sounds": {
+          "walk": ["grass1.mp3","grass2.mp3","grass3.mp3","grass4.mp3"]
+        }
       },
       {
         "id": 2,
@@ -27,7 +30,10 @@
         "emitsLight": false,
         "isCollidable": true,
         "hardness": 0.3,
-        "textureIndices": [2,2,2,2,2,2]
+        "textureIndices": [2,2,2,2,2,2],
+        "sounds": {
+          "walk": ["dirt1.mp3","dirt2.mp3","dirt3.mp3","dirt4.mp3","dirt5.mp3","dirt6.mp3"]
+        }
       },
       {
         "id": 3,

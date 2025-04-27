@@ -228,6 +228,8 @@ void World::LoadChunks(GameContext *c)
 {
     // Here we need to load the modified chunks
     ChunkPos pPos = c->plr->chunkPos;
+
+    /*
     std::ifstream in("chunk.json");
     if (in.is_open()) {
 
@@ -253,16 +255,19 @@ void World::LoadChunks(GameContext *c)
         }
         
     }
+    */
+    int currentGen = renderer->chunkGenFrameId.load();
 
     while (true)
     {
         {
             std::unique_lock<std::mutex> lock(queueLoadMutex);
-            queueCV.wait(lock, [this, c] { return c->isClosing || loadSignal; });
+            queueCV.wait(lock, [this, c, currentGen] { return currentGen != renderer->chunkGenFrameId.load() || c->isClosing || loadSignal; });
 
             if (c->isClosing) return;  // Exit thread when game ends
 
             loadSignal = false;
+            currentGen = renderer->chunkGenFrameId.load();
         }
 
         pPos = c->plr->chunkPos;
@@ -282,10 +287,11 @@ void World::LoadChunks(GameContext *c)
 
         // This looping in a radius extending outwards from the centermost chunk.
         for (const auto dPos : loadOrder) {
+            if (renderer->chunkGenFrameId.load() != currentGen) continue;  // drop stale
             int x = pPos.x + dPos.x, y = pPos.y + dPos.y, z = pPos.z + dPos.z;
             ChunkPos nPos({x,y,z});
             // if the chunk is not loaded (not in the hashtable) then we need to create the instance
-            if (ChunkReady(nPos)) continue;
+            if (renderer->IsLoaded(nPos)) continue;
 
             if (!this->chunks.contains(nPos))
                 this->chunks[nPos] = std::make_shared<Chunk>();
@@ -293,13 +299,14 @@ void World::LoadChunks(GameContext *c)
             this->chunks.at(nPos)->Init(c);
             Task task;
             task.priority = (float)nPos.distance(pPos);
-            task.func = [this, c, pPos, nPos]() {
+            task.func = [this, c, pPos, nPos, currentGen]() {
+                if (renderer->chunkGenFrameId.load() != currentGen) return;  // drop stale
                 if (ChunkReady(nPos)) {
                     if (!this->chunks.at(nPos)->loaded.load())
                     {
                         auto [visible, data] = this->terrain->generateChunk(nPos);            
                         this->chunks.at(nPos)->visible = this->terrain->getVisibilityFlags(nPos);
-                        this->chunks.at(nPos)->Load(data);
+                        this->chunks.at(nPos)->Load(c, data);
                         this->chunks.at(nPos)->loaded.store(true); 
                     }
                     if (this->chunks.at(nPos)->visible == 0) return;
@@ -392,7 +399,6 @@ void World::Init(GameContext *c)
     
     // Attach texture as color output
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, fboTexture, 0);
-    
     glGenTextures(1, &fboDepthTexture);
     glBindTexture(GL_TEXTURE_2D, fboDepthTexture);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, c->width, c->height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
@@ -400,6 +406,10 @@ void World::Init(GameContext *c)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, fboDepthTexture, 0);
     
+    // ← tell GL we are drawing into COLOR_ATTACHMENT0
+    GLenum drawBuffers[1] = { GL_COLOR_ATTACHMENT0 };
+    glDrawBuffers(1, drawBuffers);
+
     // Validate FBO
     GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
     if (status != GL_FRAMEBUFFER_COMPLETE) {
@@ -443,6 +453,7 @@ void World::OnEvent(GameContext *c, const SDL_Event *event)
 {
     if (event->type == SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED)
     {
+        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
         glBindTexture(GL_TEXTURE_2D, fboTexture);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, c->width, c->height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -456,7 +467,7 @@ void World::OnEvent(GameContext *c, const SDL_Event *event)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, fboDepthTexture, 0);
-
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
 }
 
@@ -473,11 +484,7 @@ void World::OnEvent(GameContext *c, const SDL_Event *event)
 void World::Update(GameContext *c, double deltaTime)
 {
     if (c->isClosing) return; // Exit if game is closing
-
-    ImGui::Text("block: (%d, %d, %d)", (int)floor(c->plr->pos.x),(int) floor(c->plr->pos.y), (int)floor(c->plr->pos.z));
-    ImGui::Text("chunk: (%lld, %lld, %lld)", c->plr->chunkPos.x, c->plr->chunkPos.y, c->plr->chunkPos.z); 
-    ImGui::Text("pos:   (%lld, %lld, %lld)", (int)floor(c->plr->pos.x) + CHUNK_X_SIZE * c->plr->chunkPos.x, (int) floor(c->plr->pos.y) + CHUNK_Y_SIZE * c->plr->chunkPos.y, (int)floor(c->plr->pos.z) + CHUNK_Z_SIZE * c->plr->chunkPos.z);
-    ImGui::Text("pos:   (%f, %f, %f)", c->plr->pos.x + CHUNK_X_SIZE * c->plr->chunkPos.x, c->plr->pos.y + CHUNK_Y_SIZE * c->plr->chunkPos.y, c->plr->pos.z + CHUNK_Z_SIZE * c->plr->chunkPos.z);
+    
     phase += deltaTime / 2.0f;
     if (phase >= 1.0f) phase -= 1.0f;
     if (phase2 >= 1.0f) phase2 -= 1.0f;
@@ -495,7 +502,6 @@ void World::Update(GameContext *c, double deltaTime)
             loadSignal = true;
         }
         queueCV.notify_all();
-        std::cout << "\r" << c->plr->chunkPos;
         std::cout.flush();
     }
 
@@ -509,8 +515,8 @@ void World::Update(GameContext *c, double deltaTime)
         if (!cptr || !cptr->loaded.load() || !cptr->removing.load())
             continue;
         // Mark for removal and remove the chunk
-        //cptr->Clear();
-        //cptr->removing.store(false);
+        // cptr->Clear();
+        // cptr->removing.store(false);
     }
 
     // needs to be aware of the chunks which are queued for render
@@ -530,7 +536,7 @@ bool World::ChunkLoaded(const ChunkPos &pos)
 void World::Render(GameContext *c)
 {
 	glCall(glBindFramebuffer(GL_FRAMEBUFFER, fbo));
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear both
+    glCall(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)); // clear both
 
     GLenum status = glCallR(glCheckFramebufferStatus(GL_FRAMEBUFFER));
     if (status != GL_FRAMEBUFFER_COMPLETE) {
@@ -538,7 +544,7 @@ void World::Render(GameContext *c)
     }
 
     // RENDER SKY
-	glDepthMask(GL_FALSE);
+	glCall(glDepthMask(GL_FALSE));
     glCall(glDisable(GL_DEPTH_TEST));
     glCall(glDisable(GL_CULL_FACE));
     glm::mat4 skyview = glm::lookAt(glm::vec3(0.f), c->plr->camera.forward, c->plr->camera.up);
@@ -554,7 +560,7 @@ void World::Render(GameContext *c)
     // RENDER WORLD
     renderer->Render(c);
 
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glCall(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 
 	glDepthMask(GL_TRUE);
     glDisable(GL_DEPTH_TEST);
@@ -571,16 +577,16 @@ void World::Render(GameContext *c)
     }
     glBindVertexArray(quadVAO);
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, fboTexture);
+    glCall(glBindTexture(GL_TEXTURE_2D, fboTexture));
     postShader.setInt("screenTexture", 0);
     postShader.setFloat("phase", phase * 2.0f * SDL_PI_F);
     glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, fboDepthTexture);
+    glCall(glBindTexture(GL_TEXTURE_2D, fboDepthTexture));
 
-    glDrawArrays(GL_TRIANGLES, 0, 6);
+    glCall(glDrawArrays(GL_TRIANGLES, 0, 6));
 
     // RENDER HIGHLIGHT
-    BlockFace selected = RayTraversal(c, Ray(c->plr->camPos, c->plr->camera.forward, c->plr->chunkPos, false), 0, c->maxBlockDistance);
+    selected = RayTraversal(c, Ray(c->plr->camPos, c->plr->camera.forward, c->plr->chunkPos, false), 0, c->maxBlockDistance);
     if (selected.face != -1)
     {  
         highlightShader.use();
@@ -596,9 +602,6 @@ void World::Render(GameContext *c)
         highlightShader.setVec2("screenSize", glm::vec2(c->width, c->height));
         highlightShader.setFloat("phase", sqrt(1-pow(2*phase - 1,2)));
         highlightMesh.RenderInstanceAuto(GL_TRIANGLE_STRIP, 4, 1);
-        
-        ImGui::Text("block id: %d", this->GetBlockId(c->plr->chunkPos, selected.pos.x, selected.pos.y, selected.pos.z)); 
-        ImGui::Text("block n:  %s", c->blockRegistry[this->GetBlockId(c->plr->chunkPos, selected.pos.x, selected.pos.y, selected.pos.z)].name.c_str()); 
     }
 
     // RENDER GIZMO
@@ -613,6 +616,20 @@ void World::Render(GameContext *c)
     gizmoShader.setFloat("u_thickness", 8.0f);
 
 	gizmoMesh.RenderInstanceAuto(GL_LINES, 2, 3);
+}
+
+void World::RenderDebug(GameContext *c)
+{
+    ImGui::Text("block: (%d, %d, %d)", (int)floor(c->plr->pos.x),(int) floor(c->plr->pos.y), (int)floor(c->plr->pos.z));
+    ImGui::Text("chunk: (%lld, %lld, %lld)", c->plr->chunkPos.x, c->plr->chunkPos.y, c->plr->chunkPos.z); 
+    ImGui::Text("pos:   (%lld, %lld, %lld)", (int)floor(c->plr->pos.x) + CHUNK_X_SIZE * c->plr->chunkPos.x, (int) floor(c->plr->pos.y) + CHUNK_Y_SIZE * c->plr->chunkPos.y, (int)floor(c->plr->pos.z) + CHUNK_Z_SIZE * c->plr->chunkPos.z);
+    ImGui::Text("pos:   (%f, %f, %f)", c->plr->pos.x + CHUNK_X_SIZE * c->plr->chunkPos.x, c->plr->pos.y + CHUNK_Y_SIZE * c->plr->chunkPos.y, c->plr->pos.z + CHUNK_Z_SIZE * c->plr->chunkPos.z);
+
+    if (selected.face != -1)
+    { 
+        ImGui::Text("block id: %d", this->GetBlockId(c->plr->chunkPos, selected.pos.x, selected.pos.y, selected.pos.z)); 
+        ImGui::Text("block n:  %s", c->blockRegistry[this->GetBlockId(c->plr->chunkPos, selected.pos.x, selected.pos.y, selected.pos.z)].name.c_str()); 
+    }
 }
 
 World::~World()

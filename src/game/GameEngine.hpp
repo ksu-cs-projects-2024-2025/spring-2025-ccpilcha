@@ -40,4 +40,5 @@ public:
     SDL_AppResult OnEvent(SDL_Event *event);
     SDL_AppResult Update(double deltaTime);
     SDL_AppResult Render();
+    SDL_AppResult RenderDebug();
 };

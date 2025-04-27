@@ -5,7 +5,7 @@
 #include "Physics.hpp"
 #include "World.hpp"
 
-Player::Player() : camera(), chunkPos({0, 0, 2}), lastPos({-1, -1, -1}), pos(0, 0, 0), radius(0.3, 0.3, 0.9), camOffset(0.0, 0.0, 0.7), acceleration(0,0,-10)
+Player::Player() : camera(), chunkPos({0, 0, 2}), lastPos({-1, -1, -1}), pos(0, 0, 0), radius(0.3, 0.3, 0.9), camOffset(0.0, 0.0, 0.7), velocity(0.0), acceleration(0,0,-10)
 {
 }
 
@@ -33,24 +33,9 @@ void Player::Init(GameContext *c, ChunkPos pos)
 
 void Player::OnEvent(GameContext *c, const SDL_Event *event)
 {
-    if (!c->isFocused) return;
     if (event->type == SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED)
     {
         camera.viewport(c->aspectRatio, c->fov);
-    }
-    if (event->type == SDL_EVENT_MOUSE_MOTION)
-    {
-        if (c->isFocused)
-            camera.rotateBy(event->motion.xrel, event->motion.yrel);
-    }
-    if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN || event->type == SDL_EVENT_MOUSE_BUTTON_UP)
-    {
-        bool isPressed = event->type == SDL_EVENT_MOUSE_BUTTON_DOWN;
-
-        if (!isPressed) placeHold = 0;
-
-        place = isPressed && event->button.button == SDL_BUTTON_RIGHT;
-        dig = isPressed && event->button.button == SDL_BUTTON_LEFT;
     }
     if (event->type == SDL_EVENT_KEY_DOWN || event->type == SDL_EVENT_KEY_UP)
     {
@@ -102,6 +87,21 @@ void Player::OnEvent(GameContext *c, const SDL_Event *event)
             cursor = 7;
         if (key == SDLK_8)
             cursor = 8;
+    }
+    if (!c->isFocused) return;
+    if (event->type == SDL_EVENT_MOUSE_MOTION)
+    {
+        if (c->isFocused)
+            camera.rotateBy(event->motion.xrel, event->motion.yrel);
+    }
+    if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN || event->type == SDL_EVENT_MOUSE_BUTTON_UP)
+    {
+        bool isPressed = event->type == SDL_EVENT_MOUSE_BUTTON_DOWN;
+
+        if (!isPressed) placeHold = 0;
+
+        place = isPressed && event->button.button == SDL_BUTTON_RIGHT;
+        dig = isPressed && event->button.button == SDL_BUTTON_LEFT;
     }
 }
 
@@ -175,15 +175,17 @@ void Player::Update(GameContext *c, double deltaTime)
                 break;
         }
     }
-    float targetFOV = c->fov;
-    if (movement[6] && glm::length(move) > 0) targetFOV = c->fov + speedFOV;
-    double t = glm::clamp(10.0 * deltaTime, 0.0, 1.0);
 
+    float targetFOV = c->fov;
+
+    if (movement[6] && glm::length(move) > 0) targetFOV = c->fov + speedFOV;
+    
     if (c->blockRegistry[c->world->GetBlockId(chunkPos, floor(camPos.x), floor(camPos.y), floor(camPos.z))].blockType == BlockType::Water)
     {
         targetFOV = targetFOV / 1.16f; // im just going with half the index of refraction
     }
-
+    
+    double t = glm::clamp(10.0 * deltaTime, 0.0, 1.0);
     if (std::abs(targetFOV - camera.fov) < 1e-1) 
         camera.setFOV(targetFOV);
     else camera.setFOV(glm::mix(camera.fov, targetFOV, t));
@@ -303,4 +305,8 @@ void Player::Update(GameContext *c, double deltaTime)
 void Player::Render(GameContext *c)
 {
     // not sure what would go here yet
+}
+
+void Player::RenderDebug(GameContext *c)
+{
 }

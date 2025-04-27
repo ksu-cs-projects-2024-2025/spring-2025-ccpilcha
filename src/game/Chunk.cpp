@@ -3,7 +3,7 @@
 #include <ostream>
 #include <array>
 
-Chunk::Chunk() : blocks()
+Chunk::Chunk() : blocks(), opaque(0), translucent(0)
 {
 }
 
@@ -22,9 +22,35 @@ bool Chunk::IsEmpty()
     return blocks.size() == 0;
 }
 
-void Chunk::Load(std::vector<CHUNK_DATA> data)
+bool Chunk::IsOpaque(int x, int y, int z)
+{
+    return opaque[x + CHUNK_X_SIZE * (y + CHUNK_Y_SIZE * z)];
+}
+
+bool Chunk::IsTranslucent(int x, int y, int z)
+{
+    return translucent[x + CHUNK_X_SIZE * (y + CHUNK_Y_SIZE * z)];
+}
+
+void Chunk::Load(GameContext *c, std::vector<CHUNK_DATA> data)
 {
     this->blocks.swap(data);
+    try {
+        for (int z = 0; z < blocks.size(); z++) {
+        for (int y = 0; y < CHUNK_Y_SIZE; y++) {
+        for (int x = 0; x < CHUNK_X_SIZE; x++) {
+            if (c->blockRegistry.at(blocks[z][y][x]).renderType == RenderType::Opaque)
+                opaque.set(x + CHUNK_X_SIZE * (y + CHUNK_Y_SIZE * z), 1);
+            if (c->blockRegistry.at(blocks[z][y][x]).renderType == RenderType::Translucent)
+                translucent.set(x + CHUNK_X_SIZE * (y + CHUNK_Y_SIZE * z), 1);
+        }
+        }
+        }
+    }
+    catch (std::out_of_range& e)
+    {
+        std::cout << "err";
+    }
     this->loaded = true;
 }
 

@@ -14,7 +14,11 @@ struct Camera {
     float yawSensitivity = 0.2f;
     float pitchSensitivity = 0.2f;
 
-    Camera() {
+    Camera() :
+      yaw(0.0f),
+      pitch(0.0f),
+      fov(75.0f),
+      aspect(16.0f / 9.0f) {
         glm::vec3 front;
         front.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
         front.z = sin(glm::radians(pitch));

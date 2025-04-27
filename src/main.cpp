@@ -84,9 +84,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
     SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
     SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 4); // Try 4 or 8
 
-    // 0 disables V-Sync in SDL
-    // TODO: should we allow V-Sync as a configuration?
-    SDL_GL_SetSwapInterval(-1);
+SDL_GL_SetSwapInterval(1); // Forc
 
     // We can just default to 800x600 for now.
     window = SDL_CreateWindow(appname, 800, 600, SDL_WINDOW_OPENGL | SDL_WINDOW_HIGH_PIXEL_DENSITY);
@@ -222,6 +220,11 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         //std::cout.flush();
     }
 
+    if (context->isFocused) {
+        ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NoMouse;
+    } else {
+        ImGui::GetIO().ConfigFlags &= ~ImGuiConfigFlags_NoMouse;
+    }    
 
     // 3. Start new ImGui frame
     ImGui_ImplOpenGL3_NewFrame();
@@ -243,38 +246,38 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         ImGui::Begin("Centered Text");
 
         const char* text = "Saving world. Please wait...";
-        ImVec2 windowSize = ImGui::GetWindowSize();
-        float textWidth = ImGui::CalcTextSize(text).x;
-
-        // Center horizontally
-        ImGui::SetCursorPosX((windowSize.x - textWidth) * 0.5f);
         ImGui::Text("%s", text);
 
         ImGui::End();
     } else {
-
-        // 4. Draw ImGui stuff
-        ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Always);
-        ImGui::Begin("Debug stuff :p", NULL, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize);
-        ImGui::Text("FPS: %3.3f", rawFPS);
         
         // We need to update before we render
         game->Update(deltaTime);
         game->Render();
 
+        // 4. Draw ImGui stuff
+        ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Always);
+        ImGui::Begin("Debug stuff :p", NULL, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize);
+        ImGui::Text("FPS: %3.3f", rawFPS);
+
+        game->RenderDebug();
+
         // 5. Render ImGui on top
         ImGui::End();
     }
     ImGui::Render();
+    // make sure we’re back to the default framebuffer
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-
-    Uint64 frameEnd = SDL_GetTicks();
-    int frameTime = frameEnd - frameStart;
-    int targetDelay = 1000 / 61;
-
-    if (frameTime < targetDelay)
-        SDL_Delay(targetDelay - frameTime);
     
+
+// busy-wait for precise frame duration
+const double targetFrameDuration = 1.0 / 60.0; // or 1.0/120.0 for 120Hz
+const double safetyMargin = 0.001; // ~1ms margin
+while ((double)(SDL_GetPerformanceCounter() - now) / frequency < (targetFrameDuration - safetyMargin)) {
+    // spin
+}
+
     SDL_GL_SwapWindow(window);
     return SDL_APP_CONTINUE;
 }

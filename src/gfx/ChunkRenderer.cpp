@@ -83,6 +83,7 @@ std::pair<std::vector<ChunkVertex>, std::vector<ChunkVertex>> ChunkRenderer::Gen
 
 void ChunkRenderer::RenderChunkAt(GameContext *c, PrioritizedChunk pChunk)
 {
+	int currentGen = chunkGenFrameId.load();
 	ChunkPos pos = pChunk.pos;
 	if (!this->world->AreAllNeighborsLoaded(pos)) {
 		chunkRenderQueue.push(pChunk);
@@ -106,6 +107,9 @@ void ChunkRenderer::RenderChunkAt(GameContext *c, PrioritizedChunk pChunk)
 	for (int z = 0; z < chunk->size(); z++) {
 	for (int y = 0; y < CHUNK_Y_SIZE; y++) {
 	for (int x = 0; x < CHUNK_X_SIZE; x++) {
+		if (this->chunkGenFrameId.load() != currentGen) {
+			return;
+		}
 		if (c->isClosing) return;
 		BLOCK_ID_TYPE blockId = chunk->GetBlockId(x,y,z);
 		BlockInfo blockInfo = c->blockRegistry[blockId];
@@ -170,6 +174,7 @@ void ChunkRenderer::RenderChunkAt(GameContext *c, PrioritizedChunk pChunk)
 void ChunkRenderer::RenderChunks(GameContext *c)
 {
 
+	int currentGen = chunkGenFrameId.load();
     // TODO: this thread needs to end when the game exits the playing state
     while (!c->isClosing)
     {
@@ -178,6 +183,7 @@ void ChunkRenderer::RenderChunks(GameContext *c)
             queueCV.wait(lock, [this, c] { return c->isClosing || !chunkRenderQueue.empty(); });
 
 			if (c->isClosing) return;
+			currentGen = chunkGenFrameId.load();
         }
 
         PrioritizedChunk pChunk;
@@ -207,7 +213,10 @@ void ChunkRenderer::RenderChunks(GameContext *c)
 			}
 			this->chunkMeshes.at(pos)->used = true;
 			this->chunkMeshes.at(pos)->pos = pos;
-			auto task = [this, c, pChunk]() {
+			auto task = [this, c, pChunk, currentGen]() {
+                if (this->chunkGenFrameId.load() != currentGen) {
+					return;
+				}
 				// it is still possible for the taskid to increment afterwards, but this shouldn't be of much issue
 				this->RenderChunkAt(c, pChunk);
 			};
@@ -223,7 +232,7 @@ ChunkRenderer::ChunkRenderer(World *w) :
 	world(w), 
 	chunkShader("assets/shaders/game/chunk.v.glsl", "assets/shaders/game/chunk.f.glsl"), 
 	chunkMeshes(), 
-	threadPool(std::make_unique<ThreadPool>(8)),
+	threadPool(std::make_unique<ThreadPool>(16)),
 	threadPoolP(std::make_unique<ThreadPool>(4))
 {
 
@@ -391,6 +400,7 @@ void ChunkRenderer::Render(GameContext *c)
 	}
 	}
 	}
+	
 	glDepthMask(GL_FALSE);
     glCall(glDisable(GL_CULL_FACE));
 	for (auto& pos : transparent){

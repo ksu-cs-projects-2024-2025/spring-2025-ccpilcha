@@ -15,6 +15,7 @@
 #pragma once
 
 #include <array>
+#include <bitset>
 #include <vector>
 #include <glm/glm.hpp>
 #include <mutex>
@@ -29,6 +30,11 @@ class Chunk
     // the idea here is that we can store the block IDs in a 3D array, but condense along the z-axis
     // if a chunk is empty (air) then this will be empty as well
     std::vector<CHUNK_DATA> blocks;
+
+    // This is perhaps my most powerful part of the design. 
+    // While I am completing the terrain in O(n^3), I can change these
+    // bits which will be used for computing AO values in O(n^3)
+    std::bitset<CHUNK_SIZE> opaque, translucent;
     
 public:
     ChunkPos pos;
@@ -40,8 +46,10 @@ public:
     Chunk();
     ~Chunk();
     bool IsEmpty();
+    bool IsOpaque(int x, int y, int z);
+    bool IsTranslucent(int x, int y, int z);
     void Init(GameContext* c);
-    void Load(std::vector<CHUNK_DATA> data);
+    void Load(GameContext* c, std::vector<CHUNK_DATA> data);
     int size();
     BLOCK_ID_TYPE GetBlockId(int x, int y, int z);
     void SetBlockId(int x, int y, int z, BLOCK_ID_TYPE id);
