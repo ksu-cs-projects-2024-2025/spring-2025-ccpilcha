@@ -8,8 +8,7 @@ Terrain::Terrain() : seed(1000)
     perlin = FastNoise::New<FastNoise::Simplex>();
     FBm = FastNoise::New<FastNoise::FractalFBm>();
     FBm->SetSource(perlin);
-    FBm->SetOctaveCount(5);
-    FBm->SetLacunarity(2.6f);
+    FBm->SetOctaveCount(4);
     rgd = FastNoise::New<FastNoise::FractalRidged>();
     rgd->SetSource(perlin);
     rgd->SetGain(0.51f);
@@ -38,7 +37,7 @@ float linearSpline(const std::vector<std::pair<float, float>>& points, float x) 
 
 std::vector<float> Terrain::generateHeightMap(ChunkPos pos)
 {
-    float frequency = 0.00006f;
+    float frequency = 0.0015f;
     float frequencyErosion = 0.0002f;
     float frequencyVariation = 0.0004f;
     float frequencyCalm = 0.00001f;
@@ -48,20 +47,11 @@ std::vector<float> Terrain::generateHeightMap(ChunkPos pos)
     // I also credit this talk by Henrik Kniberg which does a fantastic explanation of the technique!
     // https://www.youtube.com/watch?v=ob3VwY4JyzE&t=1407s 
     std::vector<std::pair<float, float>> continentalSplines = {
-        {-1.0f, -500.0f},  // Inland plateau
-        {-0.8f, -475.0f},  // Deep ocean
-        {-0.6f, -370.0f},  // Deep ocean
-        {-0.55f,-160.0f},   // Sea level
-        {-0.45f, -12.0f},   // Sea level
-        {-0.4f, -10.0f},   // Sea level
-        {-0.3f,  3.0f},   // Sea level
-        { 0.0f, -2.0f},  // Coastline
-        { 0.15f,  32.0f},  // Coastline
-        { 0.25f, 40.0f},  // Coastline
-        { 0.3f, 36.0f},  // Coastline
-        { 0.55f,  100.0f},  // Mountains
-        { 0.8f,  150.0f},  // Mountains
-        { 1.0f,  250.0f}  // Mountains
+        {-1.0f, -90.0f},  // Inland plateau
+        {-0.4f,   0.0f},  // Inland plateau
+        { 0.2f,  20.0f},  // Inland plateau
+        { 0.5f,  50.0f},  // Inland plateau
+        { 1.0f,  150.0f}  // Mountains
     };
 
     std::vector<std::pair<float, float>> erosionSplines = {
@@ -85,7 +75,7 @@ std::vector<float> Terrain::generateHeightMap(ChunkPos pos)
                         variation(CHUNK_X_SIZE * CHUNK_Y_SIZE), 
                         calm(CHUNK_X_SIZE * CHUNK_Y_SIZE);
 
-	rgd->GenUniformGrid2D(continental.data(), pos.x * CHUNK_X_SIZE, pos.y * CHUNK_Y_SIZE, CHUNK_X_SIZE, CHUNK_Y_SIZE, frequency, seed);
+	FBm->GenUniformGrid2D(continental.data(), pos.x * CHUNK_X_SIZE, pos.y * CHUNK_Y_SIZE, CHUNK_X_SIZE, CHUNK_Y_SIZE, frequency, seed);
 	FBm->GenUniformGrid2D(erosion.data(), pos.x * CHUNK_X_SIZE, pos.y * CHUNK_Y_SIZE, CHUNK_X_SIZE, CHUNK_Y_SIZE, frequencyErosion, seed);
 	FBm->GenUniformGrid2D(variation.data(), pos.x * CHUNK_X_SIZE, pos.y * CHUNK_Y_SIZE, CHUNK_X_SIZE, CHUNK_Y_SIZE, frequencyVariation, seed);
 	FBm->GenUniformGrid2D(calm.data(), pos.x * CHUNK_X_SIZE, pos.y * CHUNK_Y_SIZE, CHUNK_X_SIZE, CHUNK_Y_SIZE, frequencyCalm, seed);
@@ -101,7 +91,7 @@ std::vector<float> Terrain::generateHeightMap(ChunkPos pos)
             float h4 = calm[x + CHUNK_X_SIZE * y];
 
             float hFinal = linearSpline(continentalSplines, h) + linearSpline(erosionSplines, h2) + 5 * h3;
-			height.push_back(hFinal);
+			height.push_back(linearSpline(continentalSplines, h));
 		}
 	}
 
@@ -117,8 +107,8 @@ std::vector<float> Terrain::generateStoneHeightMap(ChunkPos pos)
     // I also credit this talk by Henrik Kniberg which does a fantastic explanation of the technique!
     // https://www.youtube.com/watch?v=ob3VwY4JyzE&t=1407s 
     std::vector<std::pair<float, float>> continentalSplines = {
-        {-1.0f, -3.0f},  // Inland plateau
-        { 1.0f, -6.0f},  // Inland plateau
+        {-1.0f, -1.0f},  // Inland plateau
+        { 1.0f, -4.0f},  // Inland plateau
     };
 
     // Let's make some Perlin Noise!
@@ -327,7 +317,7 @@ bool Terrain::getVisibilityFlags(ChunkPos pos)
     for (int y = 0; y < CHUNK_Y_SIZE; y++) {
     for (int x = 0; x < CHUNK_X_SIZE; x++) {
         int64_t h = floorf(heightMap[x + CHUNK_X_SIZE * y]);
-        if (h >= chunkMinZ || h<=0 && pos.z == 0)
+        if ((h >= chunkMinZ && h < chunkMaxZ)|| h<=0 && pos.z == 0)
         {
             return true; // Visible
         }
@@ -345,14 +335,12 @@ std::pair<bool, std::vector<CHUNK_DATA>> Terrain::generateChunk(ChunkPos pos)
     std::vector<float> heightMap = generateHeightMap(pos);
     std::vector<float> stoneMap = generateStoneHeightMap(pos);
     
-    std::vector<bool> caveMap = generateCaves(pos);
-    std::vector<float> riverMap = generateRivers(pos);
+    //std::vector<bool> caveMap = generateCaves(pos);
+    //std::vector<float> riverMap = generateRivers(pos);
     
 	std::vector<float> variation(CHUNK_X_SIZE * CHUNK_Y_SIZE);
-	std::vector<float> stuff(CHUNK_X_SIZE * CHUNK_Y_SIZE * CHUNK_Z_SIZE);
 
 	FBm->GenUniformGrid2D(variation.data(), pos.x * CHUNK_X_SIZE, pos.y * CHUNK_Y_SIZE, CHUNK_X_SIZE, CHUNK_Y_SIZE, frequencyVariation, seed);
-	FBm->GenUniformGrid3D(stuff.data(), pos.x * CHUNK_X_SIZE, pos.y * CHUNK_Y_SIZE, pos.z * CHUNK_Z_SIZE, CHUNK_X_SIZE, CHUNK_Y_SIZE, CHUNK_Z_SIZE, frequencyVariation, seed + 42);
     
     bool hasAir = false;
     for (int64_t z = 0; z < CHUNK_Z_SIZE; z++)
@@ -362,7 +350,7 @@ std::pair<bool, std::vector<CHUNK_DATA>> Terrain::generateChunk(ChunkPos pos)
         CHUNK_DATA layer = CHUNK_DATA();
         for (int y = 0; y < CHUNK_Y_SIZE; y++){
         for (int x = 0; x < CHUNK_X_SIZE; x++){
-            int64_t calcH = floorf(heightMap[x + CHUNK_X_SIZE * y]) + floorf(riverMap[x + CHUNK_X_SIZE * y]) * std::clamp(1.0f - (heightMap[x + CHUNK_X_SIZE * y]/40.f), 0.0f, 1.0f);
+            int64_t calcH = floorf(heightMap[x + CHUNK_X_SIZE * y]);
             
             if (trueHeight == calcH) {
                 BLOCK_ID_TYPE block = 4;
@@ -380,17 +368,15 @@ std::pair<bool, std::vector<CHUNK_DATA>> Terrain::generateChunk(ChunkPos pos)
                 hasAir = true;
             }
 
-            if (stuff[x + CHUNK_X_SIZE * (y + CHUNK_Y_SIZE * z)] >= std::clamp(calcH/100.f, 0.0f, 1.0f)) layer[y][x] = 0;
-
             if (trueHeight <= calcH + (int64_t)floorf(stoneMap[x + CHUNK_X_SIZE * y]))
             {
                 layer[y][x] = 3;
             }
-
+            /*
             if (trueHeight <= calcH && caveMap[x + CHUNK_X_SIZE * (y + CHUNK_Y_SIZE * z)])
             {
                 layer[y][x] = 0;
-            }
+            }*/
         }
         }
         data.push_back(layer);
