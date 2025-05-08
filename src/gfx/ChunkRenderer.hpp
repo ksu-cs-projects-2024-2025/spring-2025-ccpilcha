@@ -35,7 +35,8 @@ class ChunkRenderer
     // TODO: i am considering if I want to switch to using a UBO instead of changing uniform variables per chunk draw call
     GLuint ubo;
     // this is the shader object for all chunks
-    Shader chunkShader;
+    Shader chunkShader, queryShader;
+    Mesh queryMesh;
     // this is the thread worker pool which will process/render chunks
     std::unique_ptr<ThreadPool> threadPool;
     std::unique_ptr<ThreadPool> threadPoolP;
@@ -43,10 +44,13 @@ class ChunkRenderer
     std::thread loadThread;
     
     World* world;
+     std::atomic<size_t> meshCount = 0;
+    
 
     std::pair<std::vector<ChunkVertex>, std::vector<ChunkVertex>> GenerateGreedyMesh(const Chunk &chunk, GameContext *c);
     void RenderChunkAt(GameContext *c, PrioritizedChunk pos);
     void RenderChunks(GameContext *c);
+    void drawChunkAABB(GameContext *c, const ChunkPos& pos);
 public:
     std::atomic<int> chunkGenFrameId = 0;
     // the render queue is for chunks which are ready to be rendered

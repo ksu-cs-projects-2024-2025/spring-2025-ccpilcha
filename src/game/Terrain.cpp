@@ -38,7 +38,7 @@ float linearSpline(const std::vector<std::pair<float, float>>& points, float x) 
 std::vector<float> Terrain::generateHeightMap(ChunkPos pos)
 {
     float frequency = 0.0015f;
-    float frequencyErosion = 0.0002f;
+    float frequencyErosion = 0.001f;
     float frequencyVariation = 0.0004f;
     float frequencyCalm = 0.00001f;
 
@@ -48,20 +48,20 @@ std::vector<float> Terrain::generateHeightMap(ChunkPos pos)
     // https://www.youtube.com/watch?v=ob3VwY4JyzE&t=1407s 
     std::vector<std::pair<float, float>> continentalSplines = {
         {-1.0f, -90.0f},  // Inland plateau
+        {-0.45f, -2.0f},  // Inland plateau
         {-0.4f,   0.0f},  // Inland plateau
         { 0.2f,  20.0f},  // Inland plateau
-        { 0.5f,  50.0f},  // Inland plateau
-        { 1.0f,  150.0f}  // Mountains
+        { 0.6f,  80.0f},  // Inland plateau
+        { 0.8f,  150.0f}, // Mountains
+        { 1.0f,  200.0f}  // Mountains
     };
 
     std::vector<std::pair<float, float>> erosionSplines = {
-        {-1.0f, 40.0f},
-        { 0.0f, -32.0f},
-        { 0.4f,-35.0f}, 
-        { 0.5f,-30.0f}, 
-        { 0.8f,-30.0f}, 
-        { 0.9f,-35.0f}, 
-        { 1.0f,-40.0f} 
+        {-1.0f, 10.0f},
+        {-0.0f, -0.0f},
+        { 0.8f,-9.0f}, 
+        { 0.9f,-9.9f}, 
+        { 1.0f,-10.0f} 
     };
 
     std::vector<std::pair<float, float>> calmSplines = {
@@ -91,7 +91,7 @@ std::vector<float> Terrain::generateHeightMap(ChunkPos pos)
             float h4 = calm[x + CHUNK_X_SIZE * y];
 
             float hFinal = linearSpline(continentalSplines, h) + linearSpline(erosionSplines, h2) + 5 * h3;
-			height.push_back(linearSpline(continentalSplines, h));
+			height.push_back(linearSpline(continentalSplines, h) + linearSpline(erosionSplines, h2));
 		}
 	}
 

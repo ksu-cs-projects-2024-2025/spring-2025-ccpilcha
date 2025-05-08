@@ -67,8 +67,8 @@ void Player::OnEvent(GameContext *c, const SDL_Event *event)
             jump = isPressed;
         
         if (key == c->toggleFly && isPressed) {
-            nextMethod = nextMethod == Movement::Normal ? Movement::Fly : Movement::Normal;
-            std::cout << (nextMethod == Movement::Normal ? "Normal" : "Flying");
+
+            nextMethod = nextMethod != Movement::Fly ? Movement::Fly : Movement::Normal;
         }
 
         if (key == SDLK_1)
@@ -107,6 +107,26 @@ void Player::OnEvent(GameContext *c, const SDL_Event *event)
 
 void Player::Update(GameContext *c, double deltaTime)
 {
+    if (nextMethod == Movement::Normal || nextMethod == Movement::Swim)
+    {
+        // now we are swimming
+        nextMethod = c->blockRegistry[c->world->GetBlockId(chunkPos, floor(pos.x), floor(pos.y), floor(pos.z))].blockType == BlockType::Water ? Movement::Swim : Movement::Normal;
+    }
+    
+    if (currentMethod != nextMethod)
+    switch (nextMethod)
+    {
+        case Movement::Fly:
+            verticalVelocity = 0;
+            break;
+        case Movement::Normal:
+            if (currentMethod == Movement::Swim && jump) {
+                verticalVelocity = 8;
+            }
+            break;
+        case Movement::Swim:
+            break;
+    }
     currentMethod = nextMethod;
     glm::dvec3 move(0, 0, 0);
     camOffsetOffset = glm::dvec3(0.0);
@@ -127,7 +147,31 @@ void Player::Update(GameContext *c, double deltaTime)
     if (c->isFocused) {
         switch (this->currentMethod)
         {
+            case Movement::Swim:
+            {
+                if (movement[0])
+                    move += camera.forward;
+                if (movement[1])
+                    move -= camera.forward;
+                if (movement[2])
+                    move -= camera.right;
+                if (movement[3])
+                    move += camera.right;
+                if (movement[7])
+                    move += glm::dvec3(0.0,0.0,1.0);
+                if (movement[8])
+                    move -= glm::dvec3(0.0,0.0,1.0);
+                
+
+                if (glm::length(move) > 0)
+                {
+                    // Normalize and scale the movement vector
+                    move = maxSwimSpeed * (movement[6] ? sprintMult : 1.0) * glm::normalize(move);
+                }
+            }
+            break;
             case Movement::Normal:
+            {
                 if (movement[0])
                     move += glm::normalize(glm::vec3(camera.forward.x, camera.forward.y, 0));
                 if (movement[1])
@@ -142,14 +186,17 @@ void Player::Update(GameContext *c, double deltaTime)
                         verticalVelocity = 9;
                     }
                 }
+                
 
                 if (glm::length(move) > 0)
                 {
                     // Normalize and scale the movement vector
                     move = maxSpeed * (movement[6] ? sprintMult : 1.0) * glm::normalize(move);
                 }
-                break;
-            default:
+            }
+            break;
+            case Movement::Fly:
+            {
                 if (movement[0])
                     move += camera.forward;
                 if (movement[1])
@@ -172,7 +219,8 @@ void Player::Update(GameContext *c, double deltaTime)
                     // Normalize and scale the movement vector
                     move = (movement[6] * 5 + 1) * c->moveSpeed * deltaTime * glm::normalize(move);
                 }
-                break;
+            }
+            break;
         }
     }
 
@@ -190,27 +238,45 @@ void Player::Update(GameContext *c, double deltaTime)
         camera.setFOV(targetFOV);
     else camera.setFOV(glm::mix(camera.fov, targetFOV, t));
 
-    glm::dvec2 targetVelocity(0.0);
-
-    if (currentMethod == Movement::Fly) {
+    glm::dvec3 targetVelocity(0.0);
+    glm::dvec3 dv;
+    double    dvLen;
+    switch (currentMethod) {
+    case Movement::Fly:
         // --- FLY MODE: no gravity, no verticalVelocity, just apply moveInput directly ---
         frameDelta = move;
-    }
-    else /* Normal */ {
+        break;
+    case Movement::Swim:
+        targetVelocity = move - glm::dvec3(0.0,0.0,1.0);
+
+        // how far we need to change this frame:
+        dv = targetVelocity - glm::dvec3(velocity.x, velocity.y, velocity.z);
+        dvLen = glm::length(dv);
+
+        if (dvLen > 1e-8) {
+            // limit the change to maxAccel * deltaTime
+            double maxStep = 160.0 * maxSwimAccel * deltaTime + std::max(0.0, dvLen - maxSwimSpeed) * 0.3;
+            if (dvLen > maxStep) {
+                dv *= (maxStep / dvLen);
+            }
+            velocity.x += dv.x;
+            velocity.y += dv.y;
+            velocity.z += dv.z;
+        }
+        frameDelta = velocity * deltaTime;
+        break;
+    case Movement::Normal:
         // --- WALK MODE: gravity + persisted verticalVelocity ---
         // 1) apply gravity if airborne
         if (!onGround) {
             verticalVelocity += 3.0 * acceleration.z * deltaTime;  // e.g. -9.81
-            targetVelocity.x = move.x;
-            targetVelocity.y = move.y;
-        } else {
-            targetVelocity.x = move.x;
-            targetVelocity.y = move.y;
         }
+        targetVelocity.x = move.x;
+        targetVelocity.y = move.y;
 
         // how far we need to change this frame:
-        glm::dvec2 dv = targetVelocity - glm::dvec2(velocity.x, velocity.y);
-        double    dvLen = glm::length(dv);
+        dv = targetVelocity - glm::dvec3(velocity.x, velocity.y, 0);
+        dvLen = glm::length(dv);
 
         if (dvLen > 1e-8) {
             // limit the change to maxAccel * deltaTime
@@ -224,6 +290,7 @@ void Player::Update(GameContext *c, double deltaTime)
         // 2) build total delta: X/Y from input, Z from vertical velocity
         velocity.z = verticalVelocity;
         frameDelta = velocity * deltaTime;
+        break;
     }
 
 
@@ -272,7 +339,7 @@ void Player::Update(GameContext *c, double deltaTime)
     pos = newPos;
 
     // --- now update verticalVelocity & onGround *only* in Normal mode ---
-    if (currentMethod == Movement::Normal) {
+    if (currentMethod == Movement::Normal || currentMethod == Movement::Swim) {
         double actualDZ = (pos.z - oldPos.z) / deltaTime;
         verticalVelocity = actualDZ;
 

@@ -17,9 +17,11 @@ class Player
     bool dig = false;
 
     double      maxSpeed    = 4.3;     // top speed in units/sec
+    double      maxSwimSpeed= 3.0;     // top speed in units/sec
     double      sprintMult  = 1.5;     // speed multiplier for sprinting
     double      slowMult    = 1.5;     // speed multiplier for going slow
     double      maxAccel    = 0.5;    // units/sec²
+    double      maxSwimAccel    = 0.05;    // units/sec²
 
     double      speedFOV    = 15.0;     // ratio of speed to FOV
 
@@ -36,7 +38,7 @@ class Player
         Fly,
         Normal,
         Swim
-    } nextMethod = Movement::Fly, currentMethod = Movement::Fly;
+    } nextMethod = Movement::Normal, currentMethod = Movement::Normal;
 
     glm::dvec3 camOffsetOffset; // a 3rd offset from camOffset!!! used for bobbing effects
 public:

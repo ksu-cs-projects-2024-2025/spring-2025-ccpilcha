@@ -25,7 +25,8 @@ protected:
     std::mutex meshMutex; // Protects vertex data
     std::atomic<bool> meshSwapping = false, loaded = false; // Indicates if the mesh is ready
 public:
-    bool used = false;
+    bool used = false, wasVisibleLastFrame = false;
+    GLuint occlusionQuery = 0;
     ChunkPos pos;
     std::atomic<bool> rendering = false, isUploaded = false, dirty = false;
     ChunkMesh();

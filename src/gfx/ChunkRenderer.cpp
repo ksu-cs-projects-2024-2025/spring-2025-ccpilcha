@@ -65,6 +65,57 @@ const int aoOffsets[6][4][3][3] = {
 	}
 };
 
+// A unit‑cube (AABB) as 12 triangles (36 vertices), xyz triplets.
+static constexpr float aabbVertices[36 * 3] = {
+    // Front  (z = 0)
+     0.f, 0.f, 0.f,
+     1.f, 0.f, 0.f,
+     1.f, 1.f, 0.f,
+     1.f, 1.f, 0.f,
+     0.f, 1.f, 0.f,
+     0.f, 0.f, 0.f,
+
+    // Back   (z = 1)
+     1.f, 0.f, 1.f,
+     0.f, 0.f, 1.f,
+     0.f, 1.f, 1.f,
+     0.f, 1.f, 1.f,
+     1.f, 1.f, 1.f,
+     1.f, 0.f, 1.f,
+
+    // Left   (x = 0)
+     0.f, 0.f, 1.f,
+     0.f, 0.f, 0.f,
+     0.f, 1.f, 0.f,
+     0.f, 1.f, 0.f,
+     0.f, 1.f, 1.f,
+     0.f, 0.f, 1.f,
+
+    // Right  (x = 1)
+     1.f, 0.f, 0.f,
+     1.f, 0.f, 1.f,
+     1.f, 1.f, 1.f,
+     1.f, 1.f, 1.f,
+     1.f, 1.f, 0.f,
+     1.f, 0.f, 0.f,
+
+    // Bottom (y = 0)
+     0.f, 0.f, 1.f,
+     1.f, 0.f, 1.f,
+     1.f, 0.f, 0.f,
+     1.f, 0.f, 0.f,
+     0.f, 0.f, 0.f,
+     0.f, 0.f, 1.f,
+
+    // Top    (y = 1)
+     0.f, 1.f, 0.f,
+     1.f, 1.f, 0.f,
+     1.f, 1.f, 1.f,
+     1.f, 1.f, 1.f,
+     0.f, 1.f, 1.f,
+     0.f, 1.f, 0.f,
+};
+
 std::pair<std::vector<ChunkVertex>, std::vector<ChunkVertex>> ChunkRenderer::GenerateGreedyMesh(const Chunk &chunk, GameContext *c)
 {
     std::vector<ChunkVertex> opaque;
@@ -168,6 +219,7 @@ void ChunkRenderer::RenderChunkAt(GameContext *c, PrioritizedChunk pChunk)
 	this->chunkMeshes.at(pos)->Load(newVerts, newVertsTranslucent);
 	this->chunkMeshes.at(pos)->pos = pos;
 	chunk->rendering.store(false);
+
 	
 }
 
@@ -232,6 +284,7 @@ ChunkRenderer::ChunkRenderer(World *w) :
 	world(w), 
 	chunkShader("assets/shaders/game/chunk.v.glsl", "assets/shaders/game/chunk.f.glsl"), 
 	chunkMeshes(), 
+	queryShader("assets/shaders/game/query.v.glsl", "assets/shaders/game/query.f.glsl"),
 	threadPool(std::make_unique<ThreadPool>(16)),
 	threadPoolP(std::make_unique<ThreadPool>(4))
 {
@@ -255,6 +308,12 @@ bool ChunkRenderer::IsLoaded(ChunkPos pos)
 
 void ChunkRenderer::Init(GameContext *c)
 {
+	queryShader.Init(c);
+	queryMesh.Init(c);
+	queryMesh.SetAttributes({{3, GL_FLOAT, GL_FALSE, (GLsizei)(3 * sizeof(float)), (GLvoid*)(0), 1}});
+	queryMesh.SetData(aabbVertices, sizeof(aabbVertices));
+
+	glBindVertexArray(0);
 
 	chunkShader.Init(c);
     this->loadThread = std::thread(&ChunkRenderer::RenderChunks, this, c);
@@ -349,6 +408,31 @@ bool isChunkVisible(const std::array<Plane, 6>& frustum, const glm::vec3& minCor
 }
 
 
+void ChunkRenderer::drawChunkAABB(GameContext *c, const ChunkPos &pos)
+{
+	queryShader.use();
+	glm::vec3 camPos = glm::vec3(
+		-c->plr->chunkPos.x * CHUNK_X_SIZE,
+		-c->plr->chunkPos.y * CHUNK_Y_SIZE,
+		-c->plr->chunkPos.z * CHUNK_Z_SIZE
+	);
+	
+	glm::vec3 chunkOffset = glm::vec3(
+		pos.x * CHUNK_X_SIZE,
+		pos.y * CHUNK_Y_SIZE,
+		pos.z * CHUNK_Z_SIZE
+	);
+	
+	// Combine them:
+	glm::mat4 model = 
+		glm::translate(glm::mat4(1.0f), camPos + chunkOffset);
+
+	queryShader.setMat4("uMVP", c->plr->camera.proj * c->plr->camera.view * model);
+
+	queryMesh.Render(GL_TRIANGLES);
+
+}
+
 void ChunkRenderer::Render(GameContext *c)
 {
 	glCall(glEnable(GL_DEPTH_TEST));
@@ -422,4 +506,5 @@ void ChunkRenderer::Render(GameContext *c)
 			continue;
 		}
 	}
+
 }

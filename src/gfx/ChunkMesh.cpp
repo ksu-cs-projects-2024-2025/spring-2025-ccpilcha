@@ -27,6 +27,10 @@ ChunkMesh::~ChunkMesh()
 void ChunkMesh::Init(GLuint vao, GLuint vbo, GLuint vaoT, GLuint vboT)
 {
 	this->init = true;
+		// e.g. when you create a new chunk or in your World/Renderer init
+	glGenQueries(1, &occlusionQuery);
+	// now chunk->occlusionQuery != 0
+
 	this->vao = vao;
 	this->vbo = vbo;
 	this->vaoT = vaoT;
@@ -53,9 +57,15 @@ void ChunkMesh::Load(std::vector<ChunkVertex> opaque, std::vector<ChunkVertex> t
     if (bufferAFlag) {
 		bufferA = std::move(opaque);
 		TbufferA = std::move(translucent);
+
+		bufferA.shrink_to_fit();
+		TbufferA.shrink_to_fit();
 	} else {
 		bufferB = std::move(opaque);
 		TbufferB = std::move(translucent);
+
+		bufferB.shrink_to_fit();
+		TbufferB.shrink_to_fit();
 	}
 
 	loaded.store(true);

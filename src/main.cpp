@@ -204,7 +204,6 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 {
 
     Uint64 now = SDL_GetPerformanceCounter();
-    Uint64 frameStart = SDL_GetTicks();
     // This calculates the amount of time between the last frame and the current frame
     double deltaTime = (double)(now - then) / frequency;
     accTime += deltaTime;
@@ -270,14 +269,15 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
     
-
-// busy-wait for precise frame duration
-const double targetFrameDuration = 1.0 / 60.0; // or 1.0/120.0 for 120Hz
-const double safetyMargin = 0.001; // ~1ms margin
-while ((double)(SDL_GetPerformanceCounter() - now) / frequency < (targetFrameDuration - safetyMargin)) {
-    // spin
-}
-
+    glFinish();
+    /*
+    // busy-wait for precise frame duration
+    const double targetFrameDuration = 1.0 / 60.0; // or 1.0/120.0 for 120Hz
+    const double safetyMargin = 0.001; // ~1ms margin
+    while ((double)(SDL_GetPerformanceCounter() - now) / frequency < (targetFrameDuration - safetyMargin)) {
+        // spin
+    }
+*/
     SDL_GL_SwapWindow(window);
     return SDL_APP_CONTINUE;
 }

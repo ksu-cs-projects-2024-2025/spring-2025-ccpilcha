@@ -444,7 +444,6 @@ void World::Init(GameContext *c)
 
     terrain->seed = c->seed;
     renderer->Init(c);
-    this->chunks.reserve(10000);
     // TODO: create thread which works on generating the world
     this->loadThread = std::thread(&World::LoadChunks, this, c);
 }
