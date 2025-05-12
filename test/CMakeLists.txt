@@ -10,6 +10,13 @@ target_link_libraries(chunk_renderer_tests
     GTest::gtest_main
 )
 
+target_include_directories(chunk_renderer_tests
+  PRIVATE
+    ${CMAKE_SOURCE_DIR}/src/common
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/modules/FastNoise/src
+)
+
 # Optional: link STB if needed in your tests
 target_include_directories(chunk_renderer_tests PRIVATE ${Stb_INCLUDE_DIR})
 

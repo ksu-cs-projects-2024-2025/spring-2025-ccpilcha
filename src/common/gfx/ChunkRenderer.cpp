@@ -328,42 +328,6 @@ void ChunkRenderer::Update(GameContext *c, double deltaTime)
     // when chunks are modified, their pointer will be placed in a queue in world called "Dirty" to signal that the chunk has been updated
     // new chunk needs to have the same vao used
 
-
-	std::vector<std::shared_ptr<ChunkMesh>> meshes;
-	int init = 0;
-	chunkShader.use();
-	for (auto &meshPair : chunkMeshes) {
-		if (meshPair.second->isInit())
-			meshPair.second->Update(c);
-		else
-			meshes.push_back(meshPair.second);
-	}
-
-	if (!meshes.empty())
-	{
-		GLuint* vao = new GLuint[meshes.size()];
-		GLuint* vbo = new GLuint[meshes.size()];
-		glCall(glGenBuffers(meshes.size(), vbo));
-		glCall(glGenVertexArrays(meshes.size(), vao));
-	
-		GLuint* vaoT = new GLuint[meshes.size()];
-		GLuint* vboT = new GLuint[meshes.size()];
-		glCall(glGenBuffers(meshes.size(), vboT));
-		glCall(glGenVertexArrays(meshes.size(), vaoT));
-		int i = 0;
-		for(auto mesh : meshes) {
-			mesh->Init(vao[i], vbo[i], vaoT[i], vboT[i]);
-			i++;
-		};
-
-		c->glCleanupQueue.emplace([=]() {
-			glCall(glDeleteBuffers(meshes.size(), vbo));
-			glCall(glDeleteVertexArrays(meshes.size(), vao));
-			glCall(glDeleteBuffers(meshes.size(), vboT));
-			glCall(glDeleteVertexArrays(meshes.size(), vaoT));
-		});
-	}
-
     for (int i = 0; i < std::min((size_t)10, chunkRemoveQueue.unsafe_size()); i++)
     {
         ChunkPos pos;
@@ -457,6 +421,8 @@ void ChunkRenderer::Render(GameContext *c)
 	chunkShader.setMat4("model", glm::translate(glm::mat4(1.0f), camPos));
 	chunkShader.setVec3("plrPos", (glm::vec3)c->plr->pos - camPos);
 
+
+	std::vector<std::shared_ptr<ChunkMesh>> meshes;
 	std::vector<ChunkPos> transparent;
 	for (int dz = -c->renderDistance; dz < c->renderDistance; dz++){
 	for (int dy = -c->renderDistance; dy < c->renderDistance; dy++){
@@ -465,6 +431,11 @@ void ChunkRenderer::Render(GameContext *c)
 		if (!chunkMeshes.contains(pos)) continue;
 		std::shared_ptr<ChunkMesh> mesh = chunkMeshes.at(pos);
 
+		if (mesh->isInit())
+			mesh->Update(c);
+		else
+			meshes.push_back(mesh);
+		
 		if (mesh->hasTranslucentBlocks()) transparent.push_back(pos);
 		
 		glm::vec3 chunkPos = glm::vec3(
@@ -483,6 +454,31 @@ void ChunkRenderer::Render(GameContext *c)
 		}
 	}
 	}
+	}
+
+	if (!meshes.empty())
+	{
+		GLuint* vao = new GLuint[meshes.size()];
+		GLuint* vbo = new GLuint[meshes.size()];
+		glCall(glGenBuffers(meshes.size(), vbo));
+		glCall(glGenVertexArrays(meshes.size(), vao));
+	
+		GLuint* vaoT = new GLuint[meshes.size()];
+		GLuint* vboT = new GLuint[meshes.size()];
+		glCall(glGenBuffers(meshes.size(), vboT));
+		glCall(glGenVertexArrays(meshes.size(), vaoT));
+		int i = 0;
+		for(auto mesh : meshes) {
+			mesh->Init(vao[i], vbo[i], vaoT[i], vboT[i]);
+			i++;
+		};
+
+		c->glCleanupQueue.emplace([=]() {
+			glCall(glDeleteBuffers(meshes.size(), vbo));
+			glCall(glDeleteVertexArrays(meshes.size(), vao));
+			glCall(glDeleteBuffers(meshes.size(), vboT));
+			glCall(glDeleteVertexArrays(meshes.size(), vaoT));
+		});
 	}
 	
 	glDepthMask(GL_FALSE);

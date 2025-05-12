@@ -3,6 +3,9 @@
 cmake_minimum_required(VERSION 3.5)
 project(main)
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+
 # Set the C++ standard
 
 set(CMAKE_CXX_STANDARD 23)
@@ -13,9 +16,6 @@ enable_testing()
 
 # Enable incomplete features in libc++
 add_definitions(-D_LIBCPP_ENABLE_INCOMPLETE_FEATURES)
-
-# Set the name of the executable
-set(EXECUTABLE_NAME ${PROJECT_NAME})
 
 # the following are installed via vcpkg
 find_package(Stb REQUIRED)
@@ -28,41 +28,68 @@ find_package(TBB CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
 find_package(GTest CONFIG REQUIRED)
 find_package(imgui CONFIG REQUIRED)
+find_package(Boost REQUIRED COMPONENTS uuid)
+find_package(unofficial-enet CONFIG REQUIRED)
 
 # not available in vcpkg
 add_subdirectory(modules/FastNoise)
 
-add_executable(${EXECUTABLE_NAME})
+# Common/shared sources
+file(GLOB_RECURSE COMMON_SRC_FILES "src/common/*.cpp")
+
+# Client-specific
+file(GLOB_RECURSE CLIENT_SRC_FILES "src/client/*.cpp")
+add_executable(client ${CLIENT_SRC_FILES} ${COMMON_SRC_FILES})
+
+# Server-specific
+file(GLOB_RECURSE SERVER_SRC_FILES "src/server/*.cpp")
+add_executable(server ${SERVER_SRC_FILES} ${COMMON_SRC_FILES})
+
+target_include_directories(client PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/common
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+target_include_directories(server PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/common
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
 
 # Link everything to your project
-target_link_libraries(${EXECUTABLE_NAME} SDL3::SDL3-static SDL3_image::SDL3_image-static SDL3_ttf::SDL3_ttf-static glad::glad glm::glm-header-only TBB::tbb FastNoise2 nlohmann_json::nlohmann_json imgui::imgui)
-target_include_directories(${EXECUTABLE_NAME} PRIVATE ${Stb_INCLUDE_DIR})
+target_link_libraries(client SDL3::SDL3-static SDL3_image::SDL3_image-static SDL3_ttf::SDL3_ttf-static glad::glad glm::glm-header-only TBB::tbb FastNoise2 nlohmann_json::nlohmann_json imgui::imgui unofficial::enet::enet Boost::uuid)
+target_include_directories(client PRIVATE ${Stb_INCLUDE_DIR})
 
 add_custom_target(assets
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_LIST_DIR}/assets ${CMAKE_BINARY_DIR}/assets
 )
-add_dependencies(${EXECUTABLE_NAME} assets)
-
-
-# Find all .cpp files automatically
-file(GLOB_RECURSE SRC_FILES "src/*.cpp")
-
-# Ensure the headers are available for the compiler
-target_include_directories(${EXECUTABLE_NAME} PRIVATE src/game src/gfx src/util src)
-
-# Add your sources to the target
-target_sources(${EXECUTABLE_NAME} PRIVATE ${SRC_FILES})
+add_dependencies(client assets)
 
 foreach(dll ${VCPKG_DLLS})
-    add_custom_command(TARGET ${EXECUTABLE_NAME} POST_BUILD
+    add_custom_command(TARGET client POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "${dll}"
-            $<TARGET_FILE_DIR:${EXECUTABLE_NAME}>
+            $<TARGET_FILE_DIR:client>
     )
 endforeach()
 
-# Add your main source code
-add_subdirectory(src)
+# === SERVER EXECUTABLE ===
 
-# Add test directory
-add_subdirectory(test)
+# Link same libraries (you can customize if needed)
+target_link_libraries(server
+    SDL3::SDL3-static SDL3_image::SDL3_image-static SDL3_ttf::SDL3_ttf-static
+    glad::glad glm::glm-header-only TBB::tbb FastNoise2
+    nlohmann_json::nlohmann_json imgui::imgui
+    unofficial::enet::enet Boost::uuid
+)
+target_include_directories(server PRIVATE ${Stb_INCLUDE_DIR})
+
+# Optionally add asset dependency if server needs it
+add_dependencies(server assets)
+
+# Copy required DLLs
+foreach(dll ${VCPKG_DLLS})
+    add_custom_command(TARGET server POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${dll}"
+            $<TARGET_FILE_DIR:server>
+    )
+endforeach()

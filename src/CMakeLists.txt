@@ -16,6 +16,8 @@ target_link_libraries(core PUBLIC
     FastNoise2
     nlohmann_json::nlohmann_json
     imgui::imgui
+    EnTT::EnTT
+    Boost::uuid
 )
 
 # Exclude main.cpp
@@ -33,5 +35,6 @@ target_link_libraries(core_testing PUBLIC
     FastNoise2
     nlohmann_json::nlohmann_json
     imgui::imgui
+    Boost::uuid
 )
 target_compile_definitions(core_testing PRIVATE UNIT_TESTING)

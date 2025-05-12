@@ -519,7 +519,15 @@ void World::Update(GameContext *c, double deltaTime)
     }
 
     // needs to be aware of the chunks which are queued for render
+    auto start = std::chrono::high_resolution_clock::now();
     renderer->Update(c, deltaTime);
+    auto end = std::chrono::high_resolution_clock::now();
+    double ms = std::chrono::duration<double, std::milli>(end - start).count();
+
+    if (ms > 0.16) {
+        std::cout << "[WARN] Tick took " << ms << "ms (target: 50ms)\n";
+    }
+
 }
 
 bool World::ChunkReady(const ChunkPos &pos)

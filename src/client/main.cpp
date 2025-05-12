@@ -38,10 +38,11 @@ static SDL_GLContext	G_OpenGL_CONTEXT;   // OpenGL context for the window
 // FPS and delta calculation
 
 static double   rawFPS = 0.0;  // Used for printing FPS
-static double   accTime = 0.0;  // Used for printing FPS
+static double   rawTPS = 0.0;  // Used for printing FPS
+static double   accTime = 0.0, accTimeU = 0.0;  // Used for printing FPS
 static Uint64   then = 0;       // The previous timestamp from the last game loop iteration
 static Uint64   frequency;      // Precision of the time counter
-static int      frameCount = 0; // Keeps track off the nth frame
+static uint32_t      frameCount = 0, tickCount = 0; // Keeps track off the nth frame
 
 std::thread closeThread;
 std::atomic<bool> doneClosing = false;
@@ -83,8 +84,6 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
         // Before context creation (example using SDL):
     SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
     SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 4); // Try 4 or 8
-
-SDL_GL_SetSwapInterval(1); // Forc
 
     // We can just default to 800x600 for now.
     window = SDL_CreateWindow(appname, 800, 600, SDL_WINDOW_OPENGL | SDL_WINDOW_HIGH_PIXEL_DENSITY);
@@ -213,9 +212,10 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     // About every 250ms, I'd like to refresh the console on the FPS
     if (accTime >= 0.25) {
         rawFPS = (double) frameCount/accTime;
-        //fprintf(stdout, "\rFPS: %.6f", (double) frameCount/accTime);
+        rawTPS = (double) tickCount/accTime;
         accTime = 0.0;
         frameCount = 0;
+        tickCount = 0;
         //std::cout.flush();
     }
 
@@ -250,14 +250,21 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         ImGui::End();
     } else {
         
+        now = SDL_GetPerformanceCounter();
+        accTimeU += deltaTime + (double)(now - then) / frequency;
         // We need to update before we render
-        game->Update(deltaTime);
+        if (accTimeU >= 1/60.0) {
+            tickCount++;
+            game->Update(accTimeU);
+            accTimeU = 0.0;
+        } 
         game->Render();
 
         // 4. Draw ImGui stuff
         ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Always);
         ImGui::Begin("Debug stuff :p", NULL, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize);
         ImGui::Text("FPS: %3.3f", rawFPS);
+        ImGui::Text("TPS: %3.3f", rawTPS);
 
         game->RenderDebug();
 

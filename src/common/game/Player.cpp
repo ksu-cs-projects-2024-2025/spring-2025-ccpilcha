@@ -247,7 +247,7 @@ void Player::Update(GameContext *c, double deltaTime)
         frameDelta = move;
         break;
     case Movement::Swim:
-        targetVelocity = move - glm::dvec3(0.0,0.0,1.0);
+        targetVelocity = glm::length(move) > 0.0 ? move : glm::dvec3(0.0,0.0,-1.0);
 
         // how far we need to change this frame:
         dv = targetVelocity - glm::dvec3(velocity.x, velocity.y, velocity.z);
