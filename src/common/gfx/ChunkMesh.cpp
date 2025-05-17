@@ -165,9 +165,8 @@ void ChunkMesh::RenderTransparent()
 
 void ChunkMesh::Clear()
 {
+	std::lock_guard<std::mutex> lock(this->meshMutex);
 	isUploaded = false;
-    if (vbo) glCall(glDeleteBuffers(1, &vbo));
-    if (vao) glCall(glDeleteVertexArrays(1, &vao));
     this->init = false;
 	this->used = false;
 	this->loaded.store(false);

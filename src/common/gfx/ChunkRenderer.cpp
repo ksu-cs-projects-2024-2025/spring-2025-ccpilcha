@@ -141,14 +141,16 @@ void ChunkRenderer::RenderChunkAt(GameContext *c, PrioritizedChunk pChunk)
         return;
     }
 	
-	std::shared_ptr<Chunk> chunk = this->world->chunks.at(pos);
-
 	if (!this->world->ChunkLoaded(pos))
 	{
 		chunkRenderQueue.push(pChunk);
 		return;
 	}
+
+	std::shared_ptr<Chunk> chunk = this->world->chunks.at(pos);
+    std::shared_lock lock(chunk->chunkMutex);
 	
+    // Acquire shared (read) lock
 	chunk->rendering.store(true);
 
 	std::vector<ChunkVertex> newVerts;
@@ -337,8 +339,8 @@ void ChunkRenderer::Update(GameContext *c, double deltaTime)
         // If it hasn’t finished loading, skip removal (it’ll be retried later)
         if (!cptr) continue;
         // Mark for removal and remove the chunk
-        //chunkMeshes.at(pos)->Clear();
-		//freeMeshes.push(chunkMeshes.at(pos));
+        chunkMeshes.at(pos)->Clear();
+		freeMeshes.push(chunkMeshes.at(pos));
     }
 }
 
@@ -417,6 +419,7 @@ void ChunkRenderer::Render(GameContext *c)
 		-1 * c->plr->chunkPos.z * CHUNK_Z_SIZE
 	);
 	glm::mat4 VP = c->plr->camera.proj * c->plr->camera.view;
+	//glm::mat4 VP = glm::perspective(glm::radians(70.f), 1.0f, 0.1f, 2000.0f) * c->plr->camera.view;
 	std::array<Plane, 6> frustumPlanes = extractFrustumPlanes(VP);
 	chunkShader.setMat4("model", glm::translate(glm::mat4(1.0f), camPos));
 	chunkShader.setVec3("plrPos", (glm::vec3)c->plr->pos - camPos);

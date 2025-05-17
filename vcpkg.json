@@ -16,6 +16,8 @@
         "nlohmann-json",
         "gtest",
         "enet",
+        "lua",
+        "sol2",
         "boost-uuid",
         {
             "name": "imgui",

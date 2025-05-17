@@ -30,12 +30,17 @@ find_package(GTest CONFIG REQUIRED)
 find_package(imgui CONFIG REQUIRED)
 find_package(Boost REQUIRED COMPONENTS uuid)
 find_package(unofficial-enet CONFIG REQUIRED)
+find_package(sol2 CONFIG REQUIRED)
+find_package(Lua REQUIRED)
 
 # not available in vcpkg
 add_subdirectory(modules/FastNoise)
 
 # Common/shared sources
-file(GLOB_RECURSE COMMON_SRC_FILES "src/common/*.cpp")
+file(GLOB_RECURSE COMMON_SRC_FILES 
+    "src/common/*.cpp"
+    "src/common/**/*.cpp"
+)
 
 # Client-specific
 file(GLOB_RECURSE CLIENT_SRC_FILES "src/client/*.cpp")
@@ -55,8 +60,9 @@ target_include_directories(server PRIVATE
 )
 
 # Link everything to your project
-target_link_libraries(client SDL3::SDL3-static SDL3_image::SDL3_image-static SDL3_ttf::SDL3_ttf-static glad::glad glm::glm-header-only TBB::tbb FastNoise2 nlohmann_json::nlohmann_json imgui::imgui unofficial::enet::enet Boost::uuid)
+target_link_libraries(client SDL3::SDL3-static SDL3_image::SDL3_image-static SDL3_ttf::SDL3_ttf-static glad::glad glm::glm-header-only TBB::tbb FastNoise2 nlohmann_json::nlohmann_json imgui::imgui unofficial::enet::enet Boost::uuid sol2 ${LUA_LIBRARIES})
 target_include_directories(client PRIVATE ${Stb_INCLUDE_DIR})
+target_include_directories(client PRIVATE ${LUA_INCLUDE_DIR})
 
 add_custom_target(assets
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_LIST_DIR}/assets ${CMAKE_BINARY_DIR}/assets
@@ -78,9 +84,12 @@ target_link_libraries(server
     SDL3::SDL3-static SDL3_image::SDL3_image-static SDL3_ttf::SDL3_ttf-static
     glad::glad glm::glm-header-only TBB::tbb FastNoise2
     nlohmann_json::nlohmann_json imgui::imgui
+    sol2
     unofficial::enet::enet Boost::uuid
+    ${LUA_LIBRARIES}
 )
 target_include_directories(server PRIVATE ${Stb_INCLUDE_DIR})
+target_include_directories(server PRIVATE ${LUA_INCLUDE_DIR})
 
 # Optionally add asset dependency if server needs it
 add_dependencies(server assets)

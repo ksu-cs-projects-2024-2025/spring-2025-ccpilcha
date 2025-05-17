@@ -37,7 +37,7 @@ struct GameContext {
     double maxBlockDistance;
     TextureArray texture;
 
-    uint64_t seed = 112349; // world seed
+    uint64_t seed = 112351; // world seed
     int renderDistance; // radius in chunks
 
     SDL_Keycode forward, backward, left, right, up, down, zenith, nadir, sprint, toggleFly, jump;
@@ -45,6 +45,8 @@ struct GameContext {
     std::unordered_map<int, BlockInfo> blockRegistry;
 
     std::string pathToTextureJSON;
+    std::string pathToIcons;
+    std::string pathToMods;
 
     std::mutex glCleanupMutex;
     std::queue<std::function<void()>> glCleanupQueue;
@@ -55,6 +57,8 @@ struct GameContext {
         pitchSensitivity(1.f), 
         texture("assets/textures/texturepack-simple.png") // TODO: i want all these variables to come from a config file
     {
+        pathToIcons = "assets/icon/";
+        pathToMods = "assets/mods/";
         pathToTextureJSON = "assets/textures/texturepack-simple.json";
         plr = nullptr;
         world = nullptr;

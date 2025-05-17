@@ -5,10 +5,10 @@
 
 Terrain::Terrain() : seed(1000)
 {
-    perlin = FastNoise::New<FastNoise::Simplex>();
+    perlin = FastNoise::New<FastNoise::Perlin>();
     FBm = FastNoise::New<FastNoise::FractalFBm>();
     FBm->SetSource(perlin);
-    FBm->SetOctaveCount(4);
+    FBm->SetOctaveCount(5);
     rgd = FastNoise::New<FastNoise::FractalRidged>();
     rgd->SetSource(perlin);
     rgd->SetGain(0.51f);
@@ -37,8 +37,8 @@ float linearSpline(const std::vector<std::pair<float, float>>& points, float x) 
 
 std::vector<float> Terrain::generateHeightMap(ChunkPos pos)
 {
-    float frequency = 0.0015f;
-    float frequencyErosion = 0.001f;
+    float frequency = 0.005f;
+    float frequencyErosion = 0.002f;
     float frequencyVariation = 0.0004f;
     float frequencyCalm = 0.00001f;
 
@@ -47,14 +47,16 @@ std::vector<float> Terrain::generateHeightMap(ChunkPos pos)
     // I also credit this talk by Henrik Kniberg which does a fantastic explanation of the technique!
     // https://www.youtube.com/watch?v=ob3VwY4JyzE&t=1407s 
     std::vector<std::pair<float, float>> continentalSplines = {
-        {-1.0f, -90.0f},  // Inland plateau
-        {-0.45f, -2.0f},  // Inland plateau
-        {-0.4f,   0.0f},  // Inland plateau
-        { 0.2f,  20.0f},  // Inland plateau
-        { 0.6f,  80.0f},  // Inland plateau
-        { 0.8f,  150.0f}, // Mountains
-        { 1.0f,  200.0f}  // Mountains
-    };
+        {-1.0f, -90.0f},   // Deep ocean
+        {-0.3f, -10.0f},   // Rolling hills
+        {-0.2f,  00.0f},   // Rolling hills
+
+        { 0.0f,  20.0f},   // Rolling hills
+        { 0.2f,  60.0f},   // Rolling hills
+        { 0.6f, 200.0f},   // Rolling hills
+        { 0.8f, 400.0f},   // Rolling hills
+        { 1.0f, 500.0f}    // Peaks
+    };    
 
     std::vector<std::pair<float, float>> erosionSplines = {
         {-1.0f, 10.0f},
@@ -70,12 +72,16 @@ std::vector<float> Terrain::generateHeightMap(ChunkPos pos)
     };
 
     // Let's make some Perlin Noise!
-	std::vector<float> continental(CHUNK_X_SIZE * CHUNK_Y_SIZE), 
+	std::vector<float> continental1(CHUNK_X_SIZE * CHUNK_Y_SIZE), 
+                        continental2(CHUNK_X_SIZE * CHUNK_Y_SIZE), 
+                        continental3(CHUNK_X_SIZE * CHUNK_Y_SIZE), 
                         erosion(CHUNK_X_SIZE * CHUNK_Y_SIZE), 
                         variation(CHUNK_X_SIZE * CHUNK_Y_SIZE), 
                         calm(CHUNK_X_SIZE * CHUNK_Y_SIZE);
 
-	FBm->GenUniformGrid2D(continental.data(), pos.x * CHUNK_X_SIZE, pos.y * CHUNK_Y_SIZE, CHUNK_X_SIZE, CHUNK_Y_SIZE, frequency, seed);
+	FBm->GenUniformGrid2D(continental1.data(), pos.x * CHUNK_X_SIZE, pos.y * CHUNK_Y_SIZE, CHUNK_X_SIZE, CHUNK_Y_SIZE, frequency, seed);
+	FBm->GenUniformGrid2D(continental2.data(), pos.x * CHUNK_X_SIZE, pos.y * CHUNK_Y_SIZE, CHUNK_X_SIZE, CHUNK_Y_SIZE, frequency, seed + 1337);
+	FBm->GenUniformGrid2D(continental3.data(), pos.x * CHUNK_X_SIZE, pos.y * CHUNK_Y_SIZE, CHUNK_X_SIZE, CHUNK_Y_SIZE, frequency, seed + 9997);
 	FBm->GenUniformGrid2D(erosion.data(), pos.x * CHUNK_X_SIZE, pos.y * CHUNK_Y_SIZE, CHUNK_X_SIZE, CHUNK_Y_SIZE, frequencyErosion, seed);
 	FBm->GenUniformGrid2D(variation.data(), pos.x * CHUNK_X_SIZE, pos.y * CHUNK_Y_SIZE, CHUNK_X_SIZE, CHUNK_Y_SIZE, frequencyVariation, seed);
 	FBm->GenUniformGrid2D(calm.data(), pos.x * CHUNK_X_SIZE, pos.y * CHUNK_Y_SIZE, CHUNK_X_SIZE, CHUNK_Y_SIZE, frequencyCalm, seed);
@@ -85,13 +91,15 @@ std::vector<float> Terrain::generateHeightMap(ChunkPos pos)
 	{
 		for (int x = 0; x < CHUNK_X_SIZE; x++)
 		{
-            float h = continental[x + CHUNK_X_SIZE * y];
-            float h2 = erosion[x + CHUNK_X_SIZE * y];
-            float h3 = variation[x + CHUNK_X_SIZE * y];
-            float h4 = calm[x + CHUNK_X_SIZE * y];
+            float h1 = continental1[x + CHUNK_X_SIZE * y];
+            float h2 = continental2[x + CHUNK_X_SIZE * y];
+            float h3 = continental3[x + CHUNK_X_SIZE * y];
+            float t  = std::clamp(h3, -0.5f, 0.5f) + 0.5f;
 
-            float hFinal = linearSpline(continentalSplines, h) + linearSpline(erosionSplines, h2) + 5 * h3;
-			height.push_back(linearSpline(continentalSplines, h) + linearSpline(erosionSplines, h2));
+            float f1 = linearSpline(continentalSplines, std::lerp(h1, h2, t));
+            float e1 = linearSpline(erosionSplines, erosion[x + CHUNK_X_SIZE * y]);
+
+			height.push_back(f1);
 		}
 	}
 

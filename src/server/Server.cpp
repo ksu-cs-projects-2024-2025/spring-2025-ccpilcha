@@ -20,14 +20,6 @@ void Server::Run()
     while (enet_host_service(server, &event, 0) > 0) {
         switch (event.type) {
             case ENET_EVENT_TYPE_RECEIVE: {
-                if (event.packet->dataLength == sizeof(PlayerIntent)) {
-                    PlayerIntent intent;
-                    memcpy(&intent, event.packet->data, sizeof(PlayerIntent));
-    
-                    // Map peer to player
-                    Player* player = playerMap[event.peer];
-                    player->ApplyIntent(intent);
-                }
                 enet_packet_destroy(event.packet);
                 break;
             }

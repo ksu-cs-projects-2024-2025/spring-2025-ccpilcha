@@ -44,6 +44,7 @@ struct BlockFace {
 
 class World {
 
+    std::atomic<int> chunksLoaded = 0, chunksAlloc = 0;
     BlockFace selected;
     GLuint fbo, fboTexture, fboDepthTexture;
 
