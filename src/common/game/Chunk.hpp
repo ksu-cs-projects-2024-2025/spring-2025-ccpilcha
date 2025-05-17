@@ -20,6 +20,7 @@
 #include <glm/glm.hpp>
 #include <mutex>
 #include <nlohmann/json.hpp>
+#include <shared_mutex>
 
 #include "ChunkPos.hpp"
 #include "GameContext.hpp"
@@ -35,6 +36,7 @@ class Chunk
     // While I am completing the terrain in O(n^3), I can change these
     // bits which will be used for computing AO values in O(n^3)
     std::bitset<CHUNK_SIZE> opaque, translucent;
+
     
 public:
     ChunkPos pos;
@@ -42,6 +44,7 @@ public:
     // inspiration: https://tomcc.github.io/2014/08/31/visibility-1.html 
     uint16_t visible;
     std::atomic<bool> loaded{false}, rendering{false}, removing{false};
+    std::shared_mutex chunkMutex;
 
     Chunk();
     ~Chunk();

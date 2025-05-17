@@ -166,7 +166,7 @@ void Player::Update(GameContext *c, double deltaTime)
                 if (glm::length(move) > 0)
                 {
                     // Normalize and scale the movement vector
-                    move = maxSwimSpeed * (movement[6] ? sprintMult : 1.0) * glm::normalize(move);
+                    move = maxSwimSpeed * (movement[6] ? sprintSwimMult : 1.0) * glm::normalize(move);
                 }
             }
             break;
@@ -255,7 +255,7 @@ void Player::Update(GameContext *c, double deltaTime)
 
         if (dvLen > 1e-8) {
             // limit the change to maxAccel * deltaTime
-            double maxStep = 160.0 * maxSwimAccel * deltaTime + std::max(0.0, dvLen - maxSwimSpeed) * 0.3;
+            double maxStep = 160.0 * maxSwimAccel * deltaTime + std::max(0.0, dvLen - maxSwimSpeed) * 2.0 * maxSwimAccel;
             if (dvLen > maxStep) {
                 dv *= (maxStep / dvLen);
             }
