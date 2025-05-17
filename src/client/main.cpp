@@ -51,6 +51,14 @@ std::atomic<bool> notClosing = true;
 // Runs at start up
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
 {
+    const char *base = SDL_GetBasePath();
+    if (base) {
+        std::filesystem::path exeDir   = std::filesystem::path(base).parent_path();
+        std::filesystem::current_path(exeDir);
+    } else {
+        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                    "SDL_GetBasePath failed: %s", SDL_GetError());
+    }
     // Instantiate variables
     then = SDL_GetPerformanceCounter();
     frequency = SDL_GetPerformanceFrequency();
@@ -67,6 +75,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
             << std::endl;
         exit(1);
     }
+
     // We now need to declare the use of OpenGL version 4.1
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
@@ -84,6 +93,12 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
         // Before context creation (example using SDL):
     SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
     SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 4); // Try 4 or 8
+
+    //Use Vsync
+    if( SDL_GL_SetSwapInterval( 1 ) < 0 )
+    {
+        printf( "Warning: Unable to set VSync! SDL Error: %s\n", SDL_GetError() );
+    }
 
     // We can just default to 800x600 for now.
     window = SDL_CreateWindow(appname, 800, 600, SDL_WINDOW_OPENGL | SDL_WINDOW_HIGH_PIXEL_DENSITY);
@@ -138,7 +153,12 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
     context->window = window;
     SDL_GetWindowSizeInPixels(window, &context->width, &context->height);
     context->aspectRatio = context->width / (float)context->height;
-    
+
+    SDL_Surface* icon = IMG_Load((context->pathToIcons + "client.png").c_str());
+    if (!SDL_SetWindowIcon(window, icon)) {
+        std::cout << SDL_GetError();
+    }
+
     glViewport(0, 0, context->width, context->height);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable( GL_BLEND );
@@ -164,14 +184,13 @@ void Exit()
 {
     // TODO: make sure everything get saved!
     delete game;
-    delete context;
-
     doneClosing = true;
 }
 
 // Runs when a new event (mouse input, keypresses, etc) occurs. This is on a separate thread!
 SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
 {
+    auto start = std::chrono::high_resolution_clock::now();
     ImGui_ImplSDL3_ProcessEvent(event);
     if (event->type == SDL_EVENT_QUIT) {
         context->isClosing = true;
@@ -201,7 +220,6 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
 // The game loop
 SDL_AppResult SDL_AppIterate(void *appstate)
 {
-
     Uint64 now = SDL_GetPerformanceCounter();
     // This calculates the amount of time between the last frame and the current frame
     double deltaTime = (double)(now - then) / frequency;
@@ -230,7 +248,6 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     ImGui_ImplSDL3_NewFrame();
     ImGui::NewFrame();
     
-
     if (context->isClosing) {
         if (notClosing)
         {
@@ -249,15 +266,13 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 
         ImGui::End();
     } else {
-        
-        now = SDL_GetPerformanceCounter();
         accTimeU += deltaTime + (double)(now - then) / frequency;
         // We need to update before we render
-        if (accTimeU >= 1/60.0) {
+        if (accTimeU >= 1/90.0) {
             tickCount++;
-            game->Update(accTimeU);
             accTimeU = 0.0;
         } 
+        game->Update(deltaTime);
         game->Render();
 
         // 4. Draw ImGui stuff
@@ -295,8 +310,11 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result)
     // we need to clean the OpenGL pipeline
     while (!context->glCleanupQueue.empty()) {
         auto task = context->glCleanupQueue.back();
+        context->glCleanupQueue.pop();
         task();
     }
+
+    delete context;
         // after running == false
     // destroy GL context
     SDL_GL_DestroyContext(G_OpenGL_CONTEXT);

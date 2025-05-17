@@ -7,6 +7,7 @@
 #include "GameState.hpp"
 #include "GameConsole.hpp"
 #include "SoundDriver.hpp"
+#include "lua/LuaEngine.hpp"
 
 #include <imgui.h>
 
@@ -29,6 +30,7 @@ class GameEngine
     World *world;
     Player plr;
     SoundDriver soundDriver;
+    LuaEngine *luaEngine;
 
     CommandResult RunCommand(const Command& command);
 public:

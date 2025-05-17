@@ -18,6 +18,7 @@ target_link_libraries(core PUBLIC
     imgui::imgui
     EnTT::EnTT
     Boost::uuid
+    sol2
 )
 
 # Exclude main.cpp
@@ -36,5 +37,6 @@ target_link_libraries(core_testing PUBLIC
     nlohmann_json::nlohmann_json
     imgui::imgui
     Boost::uuid
+    sol2
 )
 target_compile_definitions(core_testing PRIVATE UNIT_TESTING)

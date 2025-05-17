@@ -229,7 +229,6 @@ void World::LoadChunks(GameContext *c)
     // Here we need to load the modified chunks
     ChunkPos pPos = c->plr->chunkPos;
 
-    /*
     std::ifstream in("chunk.json");
     if (in.is_open()) {
 
@@ -255,7 +254,6 @@ void World::LoadChunks(GameContext *c)
         }
         
     }
-    */
     int currentGen = renderer->chunkGenFrameId.load();
 
     while (true)
@@ -278,7 +276,7 @@ void World::LoadChunks(GameContext *c)
             int x = abs(rel.x);
             int y = abs(rel.y);
             int z = abs(rel.z);
-            if (x >= c->renderDistance * 1.5 || y >= c->renderDistance * 1.5 || z >= c->renderDistance * 1.5) {
+            if (!cptr->removing && (x >= c->renderDistance * 1.5 || y >= c->renderDistance * 1.5 || z >= c->renderDistance * 1.5)) {
                 cptr->removing = true;
                 chunkRemoveQueue.push(pos);
                 this->renderer->chunkRemoveQueue.push(pos);
@@ -324,6 +322,9 @@ void World::LoadChunks(GameContext *c)
                         std::cerr << "[WARNING] Chunk position mismatch: rendered pos != memory pos!\n";
                         return;
                     }
+
+                    this->chunksAlloc.fetch_add(1, std::memory_order_relaxed);
+                    this->chunksLoaded.fetch_add(1, std::memory_order_relaxed);
                 }
             };
             threadPool->enqueueTask(task);
@@ -483,7 +484,7 @@ void World::OnEvent(GameContext *c, const SDL_Event *event)
 void World::Update(GameContext *c, double deltaTime)
 {
     if (c->isClosing) return; // Exit if game is closing
-    
+
     phase += deltaTime / 2.0f;
     if (phase >= 1.0f) phase -= 1.0f;
     if (phase2 >= 1.0f) phase2 -= 1.0f;
@@ -514,20 +515,17 @@ void World::Update(GameContext *c, double deltaTime)
         if (!cptr || !cptr->loaded.load() || !cptr->removing.load())
             continue;
         // Mark for removal and remove the chunk
-        // cptr->Clear();
-        // cptr->removing.store(false);
+        /* -- goals: we should consider transitioning to a "sliding window" kind of design
+        {
+            std::unique_lock lock(cptr->chunkMutex);
+            cptr->Clear();
+            cptr->removing.store(false);
+            chunksLoaded.fetch_add(-1, std::memory_order_relaxed);
+        }
+        */
     }
 
-    // needs to be aware of the chunks which are queued for render
-    auto start = std::chrono::high_resolution_clock::now();
     renderer->Update(c, deltaTime);
-    auto end = std::chrono::high_resolution_clock::now();
-    double ms = std::chrono::duration<double, std::milli>(end - start).count();
-
-    if (ms > 0.16) {
-        std::cout << "[WARN] Tick took " << ms << "ms (target: 50ms)\n";
-    }
-
 }
 
 bool World::ChunkReady(const ChunkPos &pos)
@@ -631,11 +629,20 @@ void World::RenderDebug(GameContext *c)
     ImGui::Text("chunk: (%lld, %lld, %lld)", c->plr->chunkPos.x, c->plr->chunkPos.y, c->plr->chunkPos.z); 
     ImGui::Text("pos:   (%lld, %lld, %lld)", (int)floor(c->plr->pos.x) + CHUNK_X_SIZE * c->plr->chunkPos.x, (int) floor(c->plr->pos.y) + CHUNK_Y_SIZE * c->plr->chunkPos.y, (int)floor(c->plr->pos.z) + CHUNK_Z_SIZE * c->plr->chunkPos.z);
     ImGui::Text("pos:   (%f, %f, %f)", c->plr->pos.x + CHUNK_X_SIZE * c->plr->chunkPos.x, c->plr->pos.y + CHUNK_Y_SIZE * c->plr->chunkPos.y, c->plr->pos.z + CHUNK_Z_SIZE * c->plr->chunkPos.z);
+    
+    ImGui::Text("cL/cA  %d/%d", chunksLoaded.load(), chunksAlloc.load()); 
+    ImGui::Text("cC   %d", chunks.size()); 
 
     if (selected.face != -1)
     { 
-        ImGui::Text("block id: %d", this->GetBlockId(c->plr->chunkPos, selected.pos.x, selected.pos.y, selected.pos.z)); 
-        ImGui::Text("block n:  %s", c->blockRegistry[this->GetBlockId(c->plr->chunkPos, selected.pos.x, selected.pos.y, selected.pos.z)].name.c_str()); 
+        BLOCK_ID_TYPE id = this->GetBlockId(c->plr->chunkPos, selected.pos.x, selected.pos.y, selected.pos.z);
+        ImGui::Text("block id: %d", id); 
+        ImGui::Text("block n:  %s", c->blockRegistry[id].name.c_str()); 
+        ChunkPos pos = c->plr->chunkPos;
+        ChunkPos::adjust(pos, selected.pos.x, selected.pos.y, selected.pos.z);
+
+        ImGui::Text("rendering:  %d", chunks.at(pos)->rendering.load()); 
+        ImGui::Text("mesh:  %d", renderer->IsLoaded(pos)); 
     }
 }
 

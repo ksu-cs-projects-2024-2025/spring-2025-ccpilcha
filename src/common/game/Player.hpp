@@ -17,8 +17,9 @@ class Player
     bool dig = false;
 
     double      maxSpeed    = 4.3;     // top speed in units/sec
-    double      maxSwimSpeed= 10.0;     // top speed in units/sec
+    double      maxSwimSpeed= 5.0;     // top speed in units/sec
     double      sprintMult  = 1.5;     // speed multiplier for sprinting
+    double      sprintSwimMult  = 2.5;     // speed multiplier for sprinting
     double      slowMult    = 1.5;     // speed multiplier for going slow
     double      maxAccel    = 0.5;    // units/sec²
     double      maxSwimAccel    = 0.05;    // units/sec²

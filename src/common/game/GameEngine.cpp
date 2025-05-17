@@ -49,6 +49,7 @@ CommandResult GameEngine::RunCommand(const Command &command)
 GameEngine::GameEngine(GameContext *c) : context(c), plr(),
                                          gui()
 {
+    luaEngine = new LuaEngine();
     // TODO: make this work off of a json or yaml. imports all the stuff necessary
     int w, h;
     SDL_GetWindowSizeInPixels(context->window, &w, &h);
@@ -69,11 +70,13 @@ GameEngine::GameEngine(GameContext *c) : context(c), plr(),
 
 GameEngine::~GameEngine()
 {
-    delete world;
+    delete luaEngine;
+    if (world) delete world;
 }
 
 SDL_AppResult GameEngine::Init() 
 {
+    luaEngine->Init(context);
     gui.Init(context);
     return this->ChangeState();
 }
@@ -102,6 +105,7 @@ SDL_AppResult GameEngine::ChangeState()
 }
 
 SDL_AppResult GameEngine::OnEvent(SDL_Event *event) {
+    luaEngine->OnEvent(context, event);
     gui.OnEvent(context, event);    
     ImGuiIO& io = ImGui::GetIO();
     switch(state){
@@ -130,6 +134,7 @@ SDL_AppResult GameEngine::OnEvent(SDL_Event *event) {
 }
 
 SDL_AppResult GameEngine::Update(double deltaTime) {
+    luaEngine->Update(context, deltaTime);
     if (this->state != this->newState) this->ChangeState();
     switch(state){
     case MENU:
@@ -185,6 +190,7 @@ static int CallbackStatic(ImGuiInputTextCallbackData* data) {
 }
 
 SDL_AppResult GameEngine::Render() {
+    luaEngine->Render(context);
     glCall(glClearColor(1.0f, 1.0f, 1.0f, 1.0f));
     glCall(glClear(GL_COLOR_BUFFER_BIT));
     switch(state){

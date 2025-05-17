@@ -6,19 +6,13 @@
 
 #include "Chunk.hpp"
 
-struct Worm {
-    glm::vec3 pos;
-    glm::vec3 dir;
-    int stepsLeft;
-};
-
 struct Terrain {
 
     uint64_t seed;
 
     FastNoise::SmartNode<FastNoise::FractalRidged> rgd;
     FastNoise::SmartNode<FastNoise::FractalFBm> FBm;
-    FastNoise::SmartNode<FastNoise::Simplex> perlin;
+    FastNoise::SmartNode<FastNoise::Perlin> perlin;
     Terrain();
     ~Terrain();
     std::vector<float> generateHeightMap(ChunkPos pos);
