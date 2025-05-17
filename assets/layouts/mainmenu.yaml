@@ -1,0 +1,20 @@
+MainMenu:
+  layers:
+    - id: "background"
+      components:
+        - type: "UIImage"
+          position: [0, 0]
+          size: [800, 600]
+          texture: "background.png"
+    - id: "menuItems"
+      components:
+        - type: "UIButton"
+          position: [350, 400]
+          size: [100, 50]
+          text: "Start Game"
+          callback: "startGame"
+        - type: "UIButton"
+          position: [350, 460]
+          size: [100, 50]
+          text: "Options"
+          callback: "openOptions"

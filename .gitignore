@@ -1,6 +1,8 @@
 # pesky mac files
 .DS_Store
 
+.env
+
 .vscode
 build
 __pycache__
